@@ -4,6 +4,10 @@ Extracts mono 16kHz audio via ffmpeg, uploads to Scribe with verbatim +
 diarize + audio events + word-level timestamps, writes the full response
 to <edit_dir>/transcripts/<video_stem>.json.
 
+If ELEVENLABS_API_KEY is missing or set to a local placeholder value, writes
+a minimal placeholder transcript and a reusable silent WAV without calling
+ElevenLabs. This keeps the rest of the video pipeline runnable during setup.
+
 Cached: if the output file already exists, the upload is skipped.
 
 Usage:
@@ -18,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import wave
 import subprocess
 import sys
 import tempfile
@@ -28,6 +33,8 @@ import requests
 
 
 SCRIBE_URL = "https://api.elevenlabs.io/v1/speech-to-text"
+PLACEHOLDER_KEYS = {"", "placeholder", "dummy", "test"}
+PLACEHOLDER_WARNING = "Using placeholder audio because ELEVENLABS_API_KEY is not configured."
 
 
 def load_api_key() -> str:
@@ -40,10 +47,70 @@ def load_api_key() -> str:
                 k, v = line.split("=", 1)
                 if k.strip() == "ELEVENLABS_API_KEY":
                     return v.strip().strip('"').strip("'")
-    v = os.environ.get("ELEVENLABS_API_KEY", "")
-    if not v:
-        sys.exit("ELEVENLABS_API_KEY not found in .env or environment")
-    return v
+    return os.environ.get("ELEVENLABS_API_KEY", "").strip().strip('"').strip("'")
+
+
+def is_placeholder_key(api_key: str) -> bool:
+    return api_key.strip().lower() in PLACEHOLDER_KEYS
+
+
+def get_video_duration(video: Path) -> float:
+    try:
+        out = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(video),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return max(0.0, float(out.stdout.strip()))
+    except (FileNotFoundError, subprocess.CalledProcessError, ValueError):
+        return 1.0
+
+
+def ensure_placeholder_audio(edit_dir: Path) -> Path:
+    placeholder_dir = edit_dir / "placeholder_audio"
+    placeholder_dir.mkdir(parents=True, exist_ok=True)
+    audio_path = placeholder_dir / "placeholder.wav"
+    if audio_path.exists():
+        return audio_path
+
+    sample_rate = 16000
+    duration_seconds = 1
+    with wave.open(str(audio_path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(b"\x00\x00" * sample_rate * duration_seconds)
+    return audio_path
+
+
+def build_placeholder_payload(video: Path, edit_dir: Path) -> dict:
+    audio_path = ensure_placeholder_audio(edit_dir)
+    duration = max(0.1, get_video_duration(video))
+    end = min(duration, 1.0)
+    return {
+        "text": "placeholder transcript",
+        "language_code": "en",
+        "language_probability": 0.0,
+        "placeholder": True,
+        "placeholder_reason": "ELEVENLABS_API_KEY is not configured",
+        "placeholder_audio": str(audio_path),
+        "source_duration": duration,
+        "words": [
+            {
+                "text": "placeholder",
+                "type": "word",
+                "start": 0.0,
+                "end": end,
+                "speaker_id": "speaker_0",
+            }
+        ],
+    }
 
 
 def extract_audio(video_path: Path, dest: Path) -> None:
@@ -106,6 +173,15 @@ def transcribe_one(
     if out_path.exists():
         if verbose:
             print(f"cached: {out_path.name}")
+        return out_path
+
+    if is_placeholder_key(api_key):
+        print(PLACEHOLDER_WARNING, file=sys.stderr, flush=True)
+        payload = build_placeholder_payload(video, edit_dir)
+        out_path.write_text(json.dumps(payload, indent=2))
+        if verbose:
+            print(f"  saved placeholder transcript: {out_path.name}")
+            print(f"    placeholder audio: {payload['placeholder_audio']}")
         return out_path
 
     if verbose:

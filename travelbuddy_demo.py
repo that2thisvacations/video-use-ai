@@ -13,14 +13,21 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
+
+from helpers.caption_styles import CaptionStyle, get_caption_style
+from helpers.export_presets import ExportPreset, get_export_preset
+from helpers.script_engine import ScriptStub, generate_script_stub
 
 
 REPO_ROOT = Path(__file__).resolve().parent
 HELPER_PYTHON = REPO_ROOT / ".venv" / "bin" / "python3.11"
 DEFAULT_BRAND = "TRAVELBUDDY"
 DEFAULT_STYLE = "cinematic"
+DEFAULT_EXPORT_PRESET = "cinematic_916"
+DEFAULT_CAPTION_STYLE = "cinematic_gold"
+DEFAULT_CONTENT_TYPE = "mentor_pitch"
 BRANDING_ROOT = REPO_ROOT / "branding"
 BRANDING_ASSETS = BRANDING_ROOT / "assets"
 
@@ -40,6 +47,24 @@ class WatermarkSettings:
     scale: float
     opacity: float
     margin: int
+
+
+@dataclass(frozen=True)
+class DemoContentMetadata:
+    export_preset: ExportPreset
+    caption_style: CaptionStyle
+    content_type: str
+    script_stub: ScriptStub
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "export_preset": self.export_preset.name,
+            "export_preset_details": asdict(self.export_preset),
+            "caption_style": self.caption_style.name,
+            "caption_style_details": asdict(self.caption_style),
+            "content_type": self.content_type,
+            "script_stub": self.script_stub.to_dict(),
+        }
 
 
 def log(step: int, total: int, message: str) -> None:
@@ -168,7 +193,41 @@ def resolve_branding_hooks(brand: str, style: str) -> BrandingHooks:
     )
 
 
-def write_edl(edit_dir: Path, source_name: str, source_path: Path, duration: float) -> Path:
+def resolve_export_preset(name: str) -> ExportPreset:
+    return get_export_preset(name)
+
+
+def resolve_caption_style(name: str) -> CaptionStyle:
+    return get_caption_style(name)
+
+
+def build_content_metadata(
+    export_preset: ExportPreset,
+    caption_style: CaptionStyle,
+    content_type: str,
+    brand: str,
+) -> DemoContentMetadata:
+    script_stub = generate_script_stub(
+        content_type,
+        brand=brand,
+        export_preset=export_preset.name,
+        caption_style=caption_style.name,
+    )
+    return DemoContentMetadata(
+        export_preset=export_preset,
+        caption_style=caption_style,
+        content_type=script_stub.content_type,
+        script_stub=script_stub,
+    )
+
+
+def write_edl(
+    edit_dir: Path,
+    source_name: str,
+    source_path: Path,
+    duration: float,
+    metadata: dict[str, object] | None = None,
+) -> Path:
     segment_end = min(duration, 1.0)
     if segment_end <= 0.0:
         segment_end = duration
@@ -190,6 +249,8 @@ def write_edl(edit_dir: Path, source_name: str, source_path: Path, duration: flo
         "overlays": [],
         "total_duration_s": segment_end,
     }
+    if metadata:
+        edl["metadata"] = metadata
 
     edl_path = edit_dir / "edl.json"
     edl_path.write_text(json.dumps(edl, indent=2))
@@ -401,6 +462,24 @@ def main() -> None:
     ap.add_argument("--brand", type=str, default=DEFAULT_BRAND, help="Brand label placeholder")
     ap.add_argument("--style", type=str, default=DEFAULT_STYLE, help="Render style placeholder")
     ap.add_argument(
+        "--export-preset",
+        type=str,
+        default=DEFAULT_EXPORT_PRESET,
+        help="Export preset metadata name (default: cinematic_916)",
+    )
+    ap.add_argument(
+        "--caption-style",
+        type=str,
+        default=DEFAULT_CAPTION_STYLE,
+        help="Caption style metadata name (default: cinematic_gold)",
+    )
+    ap.add_argument(
+        "--content-type",
+        type=str,
+        default=DEFAULT_CONTENT_TYPE,
+        help="Content type metadata name (default: mentor_pitch)",
+    )
+    ap.add_argument(
         "--tts-provider",
         type=str,
         default="placeholder",
@@ -441,6 +520,17 @@ def main() -> None:
 
     require_tools(["ffmpeg", "ffprobe"])
     hooks = resolve_branding_hooks(args.brand, args.style)
+    try:
+        export_preset = resolve_export_preset(args.export_preset)
+        caption_style = resolve_caption_style(args.caption_style)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+    content_metadata = build_content_metadata(
+        export_preset=export_preset,
+        caption_style=caption_style,
+        content_type=args.content_type,
+        brand=args.brand,
+    )
     watermark = WatermarkSettings(
         scale=args.watermark_scale,
         opacity=args.watermark_opacity,
@@ -480,6 +570,17 @@ def main() -> None:
             f"scale={watermark.scale:.3f} opacity={watermark.opacity:.3f} margin={watermark.margin}",
             flush=True,
         )
+        print(
+            "  export preset: "
+            f"{export_preset.name} -> {export_preset.resolution} ({export_preset.aspect_ratio})",
+            flush=True,
+        )
+        print(
+            "  caption style: "
+            f"{caption_style.name} / content type: {content_metadata.content_type}",
+            flush=True,
+        )
+        print(f"  script routing: {content_metadata.script_stub.routing_hint}", flush=True)
     else:
         print("Branding mode inactive; using default placeholders", flush=True)
     transcribe_cmd = [
@@ -529,7 +630,17 @@ def main() -> None:
     )
 
     log(5, 5, "Rendering preview...")
-    edl_path = write_edl(edit_dir, Path(source_name).stem, source_path, duration)
+    edl_path = write_edl(
+        edit_dir,
+        Path(source_name).stem,
+        source_path,
+        duration,
+        metadata={
+            "brand": hooks.brand if hooks.active else args.brand,
+            "style": hooks.style if hooks.active else args.style,
+            **content_metadata.to_dict(),
+        },
+    )
     if hooks.active:
         edl = json.loads(edl_path.read_text())
         edl["branding"] = {

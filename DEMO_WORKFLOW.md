@@ -41,6 +41,17 @@ cd ~/Documents/video-use-ai
 .venv/bin/python3.11 travelbuddy_demo.py --input /path/to/video.mp4 --brand TRAVELBUDDY --style cinematic
 ```
 
+Phase A metadata example:
+
+```bash
+.venv/bin/python3.11 travelbuddy_demo.py \
+  --brand TRAVELBUDDY \
+  --style cinematic \
+  --export-preset cinematic_916 \
+  --caption-style cinematic_gold \
+  --content-type mentor_pitch
+```
+
 Watermark tuning example:
 
 ```bash
@@ -96,6 +107,7 @@ Expected files:
 - `edit/placeholder_audio/placeholder.wav`
 - `edit/piper_audio/<source>.wav` when Piper is selected and installed
 - `edit/preview_branded.mp4` when TravelBuddy branding is active and assets are present
+- `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
 
 The script also prints:
 
@@ -116,6 +128,7 @@ TravelBuddy branding can be tuned with:
 - Add a real brand manifest file for TravelBuddy-specific defaults.
 - Add a second command mode for ingesting a folder of source videos.
 - Add a provider selector for additional local transcription backends.
+- Add content-type routing for future AI script generation and caption presets.
 - Add an export mode that copies the preview into a named shareable folder.
 
 ## Notes

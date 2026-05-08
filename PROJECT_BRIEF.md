@@ -127,6 +127,12 @@ The local-first architecture keeps provider selection inside `helpers/transcribe
 The code looks for provider assets in the repo and in the edit workspace. Do not commit generated audio or temporary model downloads.
 The workflow assumes `ffmpeg` and `ffprobe` are available on `PATH`; the system `ffprobe` binary is fine.
 
+Phase A metadata modules:
+
+- `helpers/export_presets.py` for social export aspect ratios, safe zones, and output suffix metadata
+- `helpers/caption_styles.py` for subtitle style metadata and future caption treatment hints
+- `helpers/script_engine.py` for content-type routing stubs and future script-generation hooks
+
 ## Placeholder Audio Mode
 
 For local setup or demos without a real provider, transcription falls back to placeholder mode when `--tts-provider placeholder` is selected.
@@ -158,3 +164,9 @@ The safest first step is documentation and prompt-level branding. That gives the
 The repo now assumes local-first transcription. Placeholder is the default, Piper is the optional real local provider, and the rest of the pipeline continues to work from the same transcript JSON contract.
 
 Generated models, audio, and video should not be committed.
+
+Future content pipeline notes:
+
+- export presets and caption styles are metadata only for now
+- `travelbuddy_demo.py` writes the selected preset/style/content metadata into `edit/edl.json`
+- script generation remains stubbed until the AI content layer is intentionally added

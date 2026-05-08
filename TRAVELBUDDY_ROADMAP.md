@@ -193,6 +193,24 @@ Deliverable:
 - a single entrypoint for common TravelBuddy workflows
 - easier onboarding for non-expert users
 
+### Phase A: Social Media Engine Metadata
+
+Goal:
+Add social-ready metadata architecture without changing rendering behavior.
+
+Scope:
+
+- export preset metadata for 9:16 and 16:9 deliverables
+- caption style metadata for social subtitle treatment
+- script-engine stubs for future content-type routing
+- demo wrapper wiring that records the selected metadata in `edit/edl.json`
+
+Deliverable:
+
+- a stable additive layer for future caption/export/script automation
+- no change to the core ffmpeg render pipeline
+- a clean handoff point for future queue or batch automation
+
 ### Phase 5: Deployment Path
 
 Goal:
@@ -218,6 +236,7 @@ Deliverable:
 - Transcript JSON shape is a contract with `pack_transcripts.py` and `render.py`.
 - The placeholder audio mode is useful for local runs, but it is not a substitute for a real provider.
 - Branding changes can drift into product redesign if they are not separated from behavior changes.
+- Social export and caption metadata should stay additive until the first real branded outputs are reviewed.
 - Deployment should wait until the local workflow is stable and the branding direction is fixed.
 
 ## Safest Next Implementation Task

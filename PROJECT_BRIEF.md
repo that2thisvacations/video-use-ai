@@ -6,7 +6,7 @@
 
 The workflow is:
 
-1. Transcribe source videos with ElevenLabs Scribe.
+1. Transcribe source videos with a selectable TTS provider route, defaulting to placeholder mode and using ElevenLabs Scribe only when explicitly selected.
 2. Pack word-level transcripts into a compact editorial view.
 3. Have the agent choose cuts from transcript timestamps and silence gaps.
 4. Render an edit with ffmpeg, color grading, audio fades, optional overlays, and optional burned-in subtitles.
@@ -124,6 +124,10 @@ The transcription helper also accepts:
 `placeholder` is the default. `elevenlabs` only uses the live API when a real
 `ELEVENLABS_API_KEY` is present; otherwise it falls back to placeholder mode
 and prints a warning.
+
+The TravelBuddy demo wrapper also forwards `--tts-provider` into the
+transcription helper so the full demo workflow can be switched without changing
+render logic.
 
 The code looks for this key in either:
 

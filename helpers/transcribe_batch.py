@@ -10,6 +10,7 @@ Usage:
     python helpers/transcribe_batch.py <videos_dir> --workers 4
     python helpers/transcribe_batch.py <videos_dir> --num-speakers 2
     python helpers/transcribe_batch.py <videos_dir> --edit-dir /custom/edit
+    python helpers/transcribe_batch.py <videos_dir> --tts-provider elevenlabs
 """
 
 from __future__ import annotations
@@ -56,6 +57,13 @@ def main() -> None:
         default=None,
         help="Optional number of speakers. Improves diarization when known.",
     )
+    ap.add_argument(
+        "--tts-provider",
+        type=str,
+        default="placeholder",
+        choices=["placeholder", "elevenlabs"],
+        help="TTS provider selection (default: placeholder)",
+    )
     args = ap.parse_args()
 
     videos_dir = args.videos_dir.resolve()
@@ -90,6 +98,7 @@ def main() -> None:
                 video=v,
                 edit_dir=edit_dir,
                 api_key=api_key,
+                tts_provider=args.tts_provider,
                 language=args.language,
                 num_speakers=args.num_speakers,
                 verbose=False,

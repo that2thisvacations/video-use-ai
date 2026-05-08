@@ -402,6 +402,13 @@ def main() -> None:
     ap.add_argument("--brand", type=str, default=DEFAULT_BRAND, help="Brand label placeholder")
     ap.add_argument("--style", type=str, default=DEFAULT_STYLE, help="Render style placeholder")
     ap.add_argument(
+        "--tts-provider",
+        type=str,
+        default="placeholder",
+        choices=["placeholder", "elevenlabs"],
+        help="TTS provider selection (default: placeholder)",
+    )
+    ap.add_argument(
         "--watermark-scale",
         type=float,
         default=0.22,
@@ -471,6 +478,8 @@ def main() -> None:
             str(workspace),
             "--workers",
             "1",
+            "--tts-provider",
+            args.tts_provider,
         ],
         cwd=REPO_ROOT,
     )

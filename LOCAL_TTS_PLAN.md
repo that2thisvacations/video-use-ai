@@ -72,6 +72,20 @@ Recommended semantics:
 - `chatterbox` is the later premium option once the team wants stronger voice
   realism or cloning-like workflows.
 
+## Next Provider Candidate
+
+**Piper**
+
+Reasoning:
+
+- simplest local install of the realistic options
+- low dependency risk compared with the other local engines
+- good macOS compatibility for a first pass
+- minimal change to the current pipeline because the output contract is simple
+
+Use Piper as the first local provider after placeholder, then evaluate Kokoro
+for a higher-quality follow-up once the routing layer is stable.
+
 ## Safest First Implementation Path
 
 1. Add `--tts-provider` parsing to `helpers/transcribe.py`.

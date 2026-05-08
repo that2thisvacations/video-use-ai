@@ -11,6 +11,13 @@ cd ~/Documents/video-use-ai
 ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic
 ```
 
+Explicit provider selection:
+
+```bash
+cd ~/Documents/video-use-ai
+ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider placeholder
+```
+
 Optional input video:
 
 ```bash
@@ -22,6 +29,13 @@ Watermark tuning example:
 
 ```bash
 ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --watermark-opacity 0.95
+```
+
+ElevenLabs demo path:
+
+```bash
+cd ~/Documents/video-use-ai
+ELEVENLABS_API_KEY=your_real_key .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider elevenlabs
 ```
 
 ## What It Does
@@ -62,6 +76,8 @@ placeholder
 dummy
 test
 ```
+
+The demo wrapper forwards `--tts-provider` into the transcription helper.
 
 ## Expected Outputs
 

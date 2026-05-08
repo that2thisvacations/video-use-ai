@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -21,6 +22,18 @@ REPO_ROOT = Path(__file__).resolve().parent
 HELPER_PYTHON = REPO_ROOT / ".venv" / "bin" / "python3.11"
 DEFAULT_BRAND = "TRAVELBUDDY"
 DEFAULT_STYLE = "cinematic"
+BRANDING_ROOT = REPO_ROOT / "branding"
+BRANDING_ASSETS = BRANDING_ROOT / "assets"
+
+
+@dataclass(frozen=True)
+class BrandingHooks:
+    active: bool
+    brand: str
+    style: str
+    watermark_path: Path | None
+    endcard_path: Path | None
+    subtitle_style: str
 
 
 def log(step: int, total: int, message: str) -> None:
@@ -89,6 +102,44 @@ def copy_input(input_path: Path, dest_path: Path) -> None:
     shutil.copy2(input_path, dest_path)
 
 
+def resolve_branding_hooks(brand: str, style: str) -> BrandingHooks:
+    brand_name = brand.strip().upper() or DEFAULT_BRAND
+    style_name = style.strip().lower() or DEFAULT_STYLE
+    active = brand_name == DEFAULT_BRAND
+
+    if not active:
+        return BrandingHooks(
+            active=False,
+            brand=brand_name,
+            style=style_name,
+            watermark_path=None,
+            endcard_path=None,
+            subtitle_style="default",
+        )
+
+    watermark_path = BRANDING_ASSETS / "watermarks" / "travelbuddy_watermark.png"
+    endcard_path = BRANDING_ASSETS / "endcards" / "travelbuddy_endcard.png"
+    subtitle_style_map = {
+        "cinematic": "travelbuddy_cinematic",
+        "luxury": "travelbuddy_luxury",
+        "luxury travel": "travelbuddy_luxury",
+        "breaking news": "travelbuddy_breaking_news",
+        "ai mentor": "travelbuddy_ai_mentor",
+        "documentary": "travelbuddy_documentary",
+        "hype reel": "travelbuddy_hype_reel",
+    }
+    subtitle_style = subtitle_style_map.get(style_name, "travelbuddy_default")
+
+    return BrandingHooks(
+        active=True,
+        brand=brand_name,
+        style=style_name,
+        watermark_path=watermark_path,
+        endcard_path=endcard_path,
+        subtitle_style=subtitle_style,
+    )
+
+
 def write_edl(edit_dir: Path, source_name: str, source_path: Path, duration: float) -> Path:
     segment_end = min(duration, 1.0)
     if segment_end <= 0.0:
@@ -130,6 +181,7 @@ def main() -> None:
     args = ap.parse_args()
 
     require_tools(["ffmpeg", "ffprobe"])
+    hooks = resolve_branding_hooks(args.brand, args.style)
 
     workspace = Path(tempfile.mkdtemp(prefix="travelbuddy_demo_")).resolve()
     edit_dir = workspace / "edit"
@@ -154,6 +206,13 @@ def main() -> None:
     duration = probe_duration(source_path)
 
     log(2, 5, f"Running transcript pipeline... [brand={args.brand}] [style={args.style}]")
+    if hooks.active:
+        print("TravelBuddy branding mode active", flush=True)
+        print(f"  watermark hook: {hooks.watermark_path}", flush=True)
+        print(f"  end card hook: {hooks.endcard_path}", flush=True)
+        print(f"  subtitle style: {hooks.subtitle_style}", flush=True)
+    else:
+        print("Branding mode inactive; using default placeholders", flush=True)
     run(
         [
             helper_python(),
@@ -196,6 +255,16 @@ def main() -> None:
 
     log(5, 5, "Rendering preview...")
     edl_path = write_edl(edit_dir, Path(source_name).stem, source_path, duration)
+    if hooks.active:
+        edl = json.loads(edl_path.read_text())
+        edl["branding"] = {
+            "brand": hooks.brand,
+            "style": hooks.style,
+            "watermark_path": str(hooks.watermark_path),
+            "endcard_path": str(hooks.endcard_path),
+            "subtitle_style": hooks.subtitle_style,
+        }
+        edl_path.write_text(json.dumps(edl, indent=2))
     preview_path = edit_dir / "preview.mp4"
     run(
         [
@@ -216,6 +285,7 @@ def main() -> None:
     print(f"Workspace: {workspace}")
     print(f"Output directory: {edit_dir}")
     print(f"Preview video path: {preview_path}")
+    print(f"Branding mode: {'active' if hooks.active else 'inactive'}")
     print("Generated files:")
     for path in generated_files:
         print(f"  - {path}")

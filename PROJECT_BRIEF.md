@@ -131,7 +131,7 @@ Phase A metadata modules:
 
 - `helpers/export_presets.py` for social export aspect ratios, safe zones, and output suffix metadata
 - `helpers/caption_styles.py` for subtitle style metadata and future caption treatment hints
-- `helpers/script_engine.py` for content-type routing stubs and future script-generation hooks
+- `helpers/script_engine.py` for deterministic topic-to-script generation and future script-generation hooks
 
 Verified vertical export behavior:
 
@@ -145,6 +145,7 @@ Verified caption rendering behavior:
 - captions are rendered as lightweight Python-generated overlay plates and composited with ffmpeg
 - if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
+- `--topic` produces `edit/generated_script.json` and can feed Piper narration text
 
 ## Placeholder Audio Mode
 
@@ -176,7 +177,8 @@ Future content pipeline notes:
 
 - export presets and caption styles are metadata only for now
 - `travelbuddy_demo.py` writes the selected preset/style/content metadata into `edit/edl.json`
-- script generation remains stubbed until the AI content layer is intentionally added
+- script generation now has a deterministic local topic-to-script path in `edit/generated_script.json`
+- Piper can narrate the generated `voice_text` when `--topic` is provided
 - the first real preset behavior should stay additive and isolated to `cinematic_916`
 - the first caption behavior should stay additive and isolated to `cinematic_gold`
 - the social-ready wrapper should remain additive and should not replace the manual preset path

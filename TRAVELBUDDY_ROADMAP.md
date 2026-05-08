@@ -217,6 +217,25 @@ The simplified social-ready wrapper should stay above this layer. It can
 select the current best preset set, generate `preview_branded_916_captioned.mp4`,
 and copy it to `final_social.mp4` without changing how presets are represented.
 
+### Phase E: Topic-Driven Workflow
+
+Goal:
+Move one step from flag-driven operation toward idea-driven operation without
+adding real AI APIs.
+
+Scope:
+
+- accept `--topic` in the demo wrapper
+- generate a deterministic `edit/generated_script.json`
+- feed `voice_text` into the Piper narration path when available
+- keep placeholder mode and manual preset selection intact
+
+Deliverable:
+
+- a lightweight topic-to-script bridge
+- a stable JSON contract for future AI script generation
+- a small abstraction point for future idea-driven travel prompts
+
 ### Phase 5: Deployment Path
 
 Goal:

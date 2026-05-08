@@ -7,6 +7,7 @@ Expected input:
 - num_speakers: optional diarization hint, currently unused
 - piper_voice: Piper model name such as ``en_US-lessac-low``
 - piper_data_dir: directory where Piper voices are stored or downloaded
+- narration_text: optional text to synthesize, when supplied
 - verbose: logging toggle
 
 Expected output:
@@ -18,6 +19,7 @@ Future implementation outline:
 2. load or download the selected Piper voice into the configured data dir
 3. synthesize a short WAV using the documented ``-- 'text'`` invocation
 4. write the same transcript JSON contract used by placeholder mode for now
+5. when a topic-generated narration string is provided, synthesize that text
 
 If Piper is not installed in the current Python environment, this module raises
 a clear error with install guidance instead of changing the default provider.
@@ -99,6 +101,7 @@ def transcribe(
     num_speakers: int | None = None,
     piper_voice: str | None = None,
     piper_data_dir: Path | None = None,
+    narration_text: str | None = None,
     verbose: bool = True,
 ) -> Path:
     transcripts_dir = edit_dir / "transcripts"
@@ -115,12 +118,13 @@ def transcribe(
     voice = (piper_voice or PIPER_DEFAULT_VOICE).strip() or PIPER_DEFAULT_VOICE
     data_dir = (piper_data_dir or (edit_dir / "piper_data")).resolve()
     audio_path = (edit_dir / "piper_audio" / f"{video.stem}.wav").resolve()
-    script_text = "placeholder transcript"
+    script_text = (narration_text or "placeholder transcript").strip() or "placeholder transcript"
 
     if verbose:
         print(f"  using Piper voice: {voice}", flush=True)
         print(f"  Piper data dir: {data_dir}", flush=True)
         print(f"  Piper audio path: {audio_path}", flush=True)
+        print(f"  Piper narration length: {len(script_text)} chars", flush=True)
 
     download_voice(voice, data_dir)
     if not audio_path.exists() or audio_path.stat().st_size == 0:
@@ -141,4 +145,3 @@ def transcribe(
         print(f"    audio: {payload['placeholder_audio']}")
 
     return out_path
-

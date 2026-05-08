@@ -18,7 +18,7 @@ from pathlib import Path
 
 from helpers.caption_styles import CaptionStyle, get_caption_style
 from helpers.export_presets import ExportPreset, get_export_preset
-from helpers.script_engine import ScriptStub, generate_script_stub
+from helpers.script_engine import generate_script_stub, get_routing_hint, normalize_content_type
 
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -54,7 +54,7 @@ class DemoContentMetadata:
     export_preset: ExportPreset
     caption_style: CaptionStyle
     content_type: str
-    script_stub: ScriptStub
+    script_stub: dict[str, object]
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -63,8 +63,14 @@ class DemoContentMetadata:
             "caption_style": self.caption_style.name,
             "caption_style_details": asdict(self.caption_style),
             "content_type": self.content_type,
-            "script_stub": self.script_stub.to_dict(),
+            "script_stub": self.script_stub,
         }
+
+
+def write_generated_script(edit_dir: Path, script: dict[str, object]) -> Path:
+    out_path = edit_dir / "generated_script.json"
+    out_path.write_text(json.dumps(script, indent=2))
+    return out_path
 
 
 def log(step: int, total: int, message: str) -> None:
@@ -491,17 +497,34 @@ def build_content_metadata(
     caption_style: CaptionStyle,
     content_type: str,
     brand: str,
+    topic: str | None = None,
 ) -> DemoContentMetadata:
-    script_stub = generate_script_stub(
-        content_type,
-        brand=brand,
-        export_preset=export_preset.name,
-        caption_style=caption_style.name,
-    )
+    if topic:
+        script_stub = generate_script_stub(
+            topic,
+            content_type,
+            brand=brand,
+            export_preset=export_preset.name,
+            caption_style=caption_style.name,
+        )
+    else:
+        content_key = normalize_content_type(str(content_type))
+        script_stub = {
+            "brand": brand.strip().upper() or DEFAULT_BRAND,
+            "content_type": content_key,
+            "export_preset": export_preset.name,
+            "caption_style": caption_style.name,
+            "routing_hint": get_routing_hint(content_key),
+            "notes": [
+                "future LLM call site",
+                "keep transcript contract unchanged",
+                "route content type into travel-specific script prompts",
+            ],
+        }
     return DemoContentMetadata(
         export_preset=export_preset,
         caption_style=caption_style,
-        content_type=script_stub.content_type,
+        content_type=str(script_stub["content_type"]),
         script_stub=script_stub,
     )
 
@@ -944,6 +967,12 @@ def main() -> None:
         help="Content type metadata name (default: mentor_pitch)",
     )
     ap.add_argument(
+        "--topic",
+        type=str,
+        default=None,
+        help="Optional topic to generate a lightweight script",
+    )
+    ap.add_argument(
         "--tts-provider",
         type=str,
         default=None,
@@ -1004,6 +1033,7 @@ def main() -> None:
         caption_style=caption_style,
         content_type=args.content_type,
         brand=args.brand,
+        topic=args.topic,
     )
     watermark = WatermarkSettings(
         scale=args.watermark_scale,
@@ -1050,9 +1080,19 @@ def main() -> None:
             f"{caption_style.name} / content type: {content_metadata.content_type}",
             flush=True,
         )
-        print(f"  script routing: {content_metadata.script_stub.routing_hint}", flush=True)
+        print(f"  script routing: {content_metadata.script_stub['routing_hint']}", flush=True)
     else:
         print("Branding mode inactive; using default placeholders", flush=True)
+    generated_script_path: Path | None = None
+    narration_text: str | None = None
+    if args.topic:
+        generated_script_path = write_generated_script(edit_dir, content_metadata.script_stub)
+        narration_text = str(content_metadata.script_stub.get("voice_text", "")).strip() or None
+        print(f"  topic: {args.topic}", flush=True)
+        print(f"  generated headline: {content_metadata.script_stub.get('headline', '')}", flush=True)
+        print(f"  content type: {content_metadata.content_type}", flush=True)
+        print(f"  narration length: {len(narration_text or '')} chars", flush=True)
+        print(f"  generated script path: {generated_script_path}", flush=True)
     transcribe_cmd = [
         helper_python(),
         str(REPO_ROOT / "helpers" / "transcribe_batch.py"),
@@ -1068,6 +1108,8 @@ def main() -> None:
         # Insert as a separate subprocess arg only when explicitly set.
         # This keeps the default workspace layout unchanged.
         transcribe_cmd.extend(["--piper-data-dir", str(args.piper_data_dir)])
+    if narration_text:
+        transcribe_cmd.extend(["--narration-text", narration_text])
     run(transcribe_cmd, cwd=REPO_ROOT)
 
     log(3, 5, "Packing transcripts...")
@@ -1123,6 +1165,9 @@ def main() -> None:
             "watermark_opacity": watermark.opacity,
             "watermark_margin": watermark.margin,
         }
+        if generated_script_path is not None:
+            edl["generated_script_path"] = str(generated_script_path)
+            edl.setdefault("metadata", {})["topic"] = args.topic
         edl_path.write_text(json.dumps(edl, indent=2))
     preview_path = edit_dir / "preview.mp4"
     run(
@@ -1191,6 +1236,8 @@ def main() -> None:
         final_social_path = edit_dir / "final_social.mp4"
         if final_social_path.exists():
             print(f"Final social video path: {final_social_path}")
+    if generated_script_path is not None:
+        print(f"Generated script path: {generated_script_path}")
     print(f"Branding mode: {'active' if hooks.active else 'inactive'}")
     print("Generated files:")
     for path in generated_files:

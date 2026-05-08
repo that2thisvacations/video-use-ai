@@ -55,6 +55,13 @@ cd ~/Documents/video-use-ai
 .venv/bin/python3.11 travelbuddy_demo.py --social-ready --tts-provider piper --piper-voice en_US-lessac-low --piper-data-dir ./models/piper
 ```
 
+Topic-driven social-ready shortcut:
+
+```bash
+cd ~/Documents/video-use-ai
+.venv/bin/python3.11 travelbuddy_demo.py --social-ready --tts-provider placeholder --topic "Stop applying. Start building."
+```
+
 Phase A metadata example:
 
 ```bash
@@ -140,6 +147,7 @@ Expected files:
 - `edit/preview_branded_916.mp4` when `--export-preset cinematic_916` is selected
 - `edit/preview_branded_916_captioned.mp4` when `--export-preset cinematic_916` and `--caption-style cinematic_gold` are selected
 - `edit/final_social.mp4` when `--social-ready` is selected
+- `edit/generated_script.json` when `--topic` is selected
 - `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
 
 The script also prints:
@@ -149,6 +157,8 @@ The script also prints:
 - generated files
 
 `final_social.mp4` is the convenience alias for the polished social-ready result. It copies the best available 9:16 social export, normally `preview_branded_916_captioned.mp4`.
+
+When `--topic` is provided, the wrapper generates a deterministic topic script and saves it to `edit/generated_script.json`. The `voice_text` field becomes the narration text for Piper.
 
 TravelBuddy branding can be tuned with:
 
@@ -164,6 +174,7 @@ TravelBuddy branding can be tuned with:
 - Add a second command mode for ingesting a folder of source videos.
 - Add a provider selector for additional local transcription backends.
 - Add content-type routing for future AI script generation and caption presets.
+- Add richer topic-to-script templates or a real AI-backed generator later, behind the same `generated_script.json` contract.
 - Expand caption styles into animated subtitle treatments after the static overlay pass is validated.
 - Add an export mode that copies the preview into a named shareable folder.
 

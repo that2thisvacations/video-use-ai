@@ -31,8 +31,8 @@ unchanged.
 
 ## AI Scripting Roadmap
 
-The script engine stub introduces content-type routing for future script
-generation.
+The script engine now supports a deterministic topic-to-script structure that
+can be saved to `edit/generated_script.json`.
 
 Target content categories:
 
@@ -43,8 +43,17 @@ Target content categories:
 - `breaking_news`
 - `airport_intel`
 
-This is only a routing boundary. It does not call any AI API and does not
+This is still a routing boundary. It does not call any AI API and does not
 change transcripts, EDL structure, or render behavior.
+
+The first topic-driven pass should remain template-based only. A real AI-backed
+script layer can later reuse the same JSON shape:
+
+- `headline`
+- `hook`
+- `main_points`
+- `cta`
+- `voice_text`
 
 ## Future Automation API Vision
 
@@ -77,7 +86,8 @@ The safest version is a local queue first, with no remote orchestration.
 3. Use the metadata to drive documentation and operator prompts.
 4. Add one real export behavior at a time, starting with `cinematic_916`.
 5. Add subtitle rendering presets only after reviewing real outputs.
-6. Add AI script generation last, behind an explicit content-type route.
+6. Add AI script generation last, behind an explicit content-type route, while
+   preserving the deterministic topic-to-script fallback.
 
 ## Phase B Verification Note
 
@@ -102,3 +112,11 @@ top of `cinematic_916`:
 
 The future subtitle animation roadmap should add motion only after the static
 caption layer is visually approved on real clips.
+
+## Phase E Verification Note
+
+The first topic-driven script pass now exists:
+
+- `--topic` writes `edit/generated_script.json`
+- `voice_text` from the generated script is passed to Piper when selected
+- placeholder mode stays unchanged unless `--topic` is used

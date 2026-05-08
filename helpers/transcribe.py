@@ -123,6 +123,7 @@ def transcribe_one(
     num_speakers: int | None = None,
     piper_voice: str | None = None,
     piper_data_dir: Path | None = None,
+    narration_text: str | None = None,
     verbose: bool = True,
 ) -> Path:
     """Transcribe a single video. Returns path to transcript JSON."""
@@ -144,6 +145,7 @@ def transcribe_one(
         num_speakers=num_speakers,
         piper_voice=piper_voice,
         piper_data_dir=piper_data_dir,
+        narration_text=narration_text,
         verbose=verbose,
     )
 
@@ -188,6 +190,12 @@ def main() -> None:
         default=None,
         help="Piper data directory (default: <edit-dir>/piper_data)",
     )
+    ap.add_argument(
+        "--narration-text",
+        type=str,
+        default=None,
+        help="Optional narration text override used by Piper",
+    )
     args = ap.parse_args()
 
     video = args.video.resolve()
@@ -203,9 +211,9 @@ def main() -> None:
         num_speakers=args.num_speakers,
         piper_voice=args.piper_voice,
         piper_data_dir=args.piper_data_dir,
+        narration_text=args.narration_text,
     )
 
 
 if __name__ == "__main__":
     main()
-

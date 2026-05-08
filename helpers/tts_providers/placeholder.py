@@ -19,6 +19,7 @@ def transcribe(
     num_speakers: int | None = None,
     piper_voice: str | None = None,
     piper_data_dir: Path | None = None,
+    narration_text: str | None = None,
     verbose: bool = True,
 ) -> Path:
     transcripts_dir = edit_dir / "transcripts"
@@ -36,4 +37,3 @@ def transcribe(
         print(f"  saved placeholder transcript: {out_path.name}")
         print(f"    placeholder audio: {payload['placeholder_audio']}")
     return out_path
-

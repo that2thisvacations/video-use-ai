@@ -18,17 +18,18 @@ Usage:
     python helpers/transcribe.py <video_path> --language en
     python helpers/transcribe.py <video_path> --num-speakers 2
     python helpers/transcribe.py <video_path> --tts-provider elevenlabs
+    python helpers/transcribe.py <video_path> --tts-provider piper --piper-voice en_US-lessac-low
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
-import importlib
-import wave
 import subprocess
 import sys
+import wave
 import tempfile
 import time
 from pathlib import Path
@@ -41,9 +42,11 @@ PLACEHOLDER_KEYS = {"", "placeholder", "dummy", "test"}
 PLACEHOLDER_WARNING = "Using placeholder audio because ELEVENLABS_API_KEY is not configured."
 TTS_PROVIDER_PLACEHOLDER = "placeholder"
 TTS_PROVIDER_ELEVENLABS = "elevenlabs"
+TTS_PROVIDER_PIPER = "piper"
 TTS_PROVIDER_MODULES = {
     TTS_PROVIDER_PLACEHOLDER: "placeholder",
     TTS_PROVIDER_ELEVENLABS: "elevenlabs",
+    TTS_PROVIDER_PIPER: "piper",
 }
 
 
@@ -70,6 +73,8 @@ def resolve_tts_provider(requested_provider: str, api_key: str) -> tuple[str, bo
         if is_placeholder_key(api_key):
             print(PLACEHOLDER_WARNING, file=sys.stderr, flush=True)
         return provider, True
+    if provider == TTS_PROVIDER_PIPER:
+        return provider, False
     if provider == TTS_PROVIDER_ELEVENLABS and not is_placeholder_key(api_key):
         return provider, False
     print(PLACEHOLDER_WARNING, file=sys.stderr, flush=True)
@@ -125,16 +130,24 @@ def ensure_placeholder_audio(edit_dir: Path) -> Path:
     return audio_path
 
 
-def build_placeholder_payload(video: Path, edit_dir: Path) -> dict:
-    audio_path = ensure_placeholder_audio(edit_dir)
+def build_placeholder_payload(
+    video: Path,
+    edit_dir: Path,
+    *,
+    audio_path: Path | None = None,
+    placeholder_reason: str = "ELEVENLABS_API_KEY is not configured",
+    transcript_text: str = "placeholder transcript",
+) -> dict:
+    if audio_path is None:
+        audio_path = ensure_placeholder_audio(edit_dir)
     duration = max(0.1, get_video_duration(video))
     end = min(duration, 1.0)
     return {
-        "text": "placeholder transcript",
+        "text": transcript_text,
         "language_code": "en",
         "language_probability": 0.0,
         "placeholder": True,
-        "placeholder_reason": "ELEVENLABS_API_KEY is not configured",
+        "placeholder_reason": placeholder_reason,
         "placeholder_audio": str(audio_path),
         "source_duration": duration,
         "words": [
@@ -197,6 +210,8 @@ def transcribe_one(
     tts_provider: str,
     language: str | None = None,
     num_speakers: int | None = None,
+    piper_voice: str | None = None,
+    piper_data_dir: Path | None = None,
     verbose: bool = True,
 ) -> Path:
     """Transcribe a single video. Returns path to transcript JSON.
@@ -211,6 +226,8 @@ def transcribe_one(
         api_key=api_key,
         language=language,
         num_speakers=num_speakers,
+        piper_voice=piper_voice,
+        piper_data_dir=piper_data_dir,
         verbose=verbose,
     )
 
@@ -240,8 +257,20 @@ def main() -> None:
         "--tts-provider",
         type=str,
         default=TTS_PROVIDER_PLACEHOLDER,
-        choices=[TTS_PROVIDER_PLACEHOLDER, TTS_PROVIDER_ELEVENLABS],
+        choices=[TTS_PROVIDER_PLACEHOLDER, TTS_PROVIDER_ELEVENLABS, TTS_PROVIDER_PIPER],
         help="TTS provider selection (default: placeholder)",
+    )
+    ap.add_argument(
+        "--piper-voice",
+        type=str,
+        default="en_US-lessac-low",
+        help="Piper voice name (default: en_US-lessac-low)",
+    )
+    ap.add_argument(
+        "--piper-data-dir",
+        type=Path,
+        default=None,
+        help="Piper data directory (default: <edit-dir>/piper_data)",
     )
     args = ap.parse_args()
 
@@ -252,14 +281,19 @@ def main() -> None:
     edit_dir = (args.edit_dir or (video.parent / "edit")).resolve()
     api_key = load_api_key()
 
-    transcribe_one(
-        video=video,
-        edit_dir=edit_dir,
-        api_key=api_key,
-        tts_provider=args.tts_provider,
-        language=args.language,
-        num_speakers=args.num_speakers,
-    )
+    try:
+        transcribe_one(
+            video=video,
+            edit_dir=edit_dir,
+            api_key=api_key,
+            tts_provider=args.tts_provider,
+            language=args.language,
+            num_speakers=args.num_speakers,
+            piper_voice=args.piper_voice,
+            piper_data_dir=args.piper_data_dir,
+        )
+    except Exception as exc:
+        sys.exit(str(exc))
 
 
 if __name__ == "__main__":

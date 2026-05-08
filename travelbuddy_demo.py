@@ -405,8 +405,20 @@ def main() -> None:
         "--tts-provider",
         type=str,
         default="placeholder",
-        choices=["placeholder", "elevenlabs"],
+        choices=["placeholder", "elevenlabs", "piper"],
         help="TTS provider selection (default: placeholder)",
+    )
+    ap.add_argument(
+        "--piper-voice",
+        type=str,
+        default="en_US-lessac-low",
+        help="Piper voice name (default: en_US-lessac-low)",
+    )
+    ap.add_argument(
+        "--piper-data-dir",
+        type=Path,
+        default=None,
+        help="Piper data directory (default: <workspace>/edit/piper_data)",
     )
     ap.add_argument(
         "--watermark-scale",
@@ -471,18 +483,22 @@ def main() -> None:
         )
     else:
         print("Branding mode inactive; using default placeholders", flush=True)
-    run(
-        [
-            helper_python(),
-            str(REPO_ROOT / "helpers" / "transcribe_batch.py"),
-            str(workspace),
-            "--workers",
-            "1",
-            "--tts-provider",
-            args.tts_provider,
-        ],
-        cwd=REPO_ROOT,
-    )
+    transcribe_cmd = [
+        helper_python(),
+        str(REPO_ROOT / "helpers" / "transcribe_batch.py"),
+        str(workspace),
+        "--workers",
+        "1",
+        "--tts-provider",
+        args.tts_provider,
+        "--piper-voice",
+        args.piper_voice,
+    ]
+    if args.piper_data_dir is not None:
+        # Insert as a separate subprocess arg only when explicitly set.
+        # This keeps the default workspace layout unchanged.
+        transcribe_cmd.extend(["--piper-data-dir", str(args.piper_data_dir)])
+    run(transcribe_cmd, cwd=REPO_ROOT)
 
     log(3, 5, "Packing transcripts...")
     run(

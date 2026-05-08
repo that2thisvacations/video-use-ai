@@ -16,14 +16,14 @@ the render flow.
 
 ## Expected Install Options for Mac
 
-Likely installation paths to evaluate later:
+Use a separate environment install instead of adding Piper to the repo
+dependencies:
 
-1. install through a Python package if the supported wrapper remains lightweight
-2. install via Homebrew only if an official formula exists and remains small
-3. keep the model files local and managed separately from Python dependencies
+1. `python3.11 -m pip install piper-tts`
+2. keep the model files local and managed separately from Python dependencies
+3. avoid adding a Homebrew dependency unless a packaging need appears later
 
-The goal is to avoid adding heavy system dependencies before the provider proves
-useful in the current pipeline.
+The goal is to keep the repo runtime optional and reversible.
 
 ## Expected Model File Location
 
@@ -34,7 +34,7 @@ Keep Piper voice/model assets outside the repo by default, for example:
 ```
 
 or a clearly documented local model folder in the user's workspace. The provider
-adapter should read model paths from configuration rather than hardcoding them.
+adapter reads the model path from the `--piper-data-dir` CLI flag.
 
 ## Expected Future CLI Usage
 
@@ -45,18 +45,19 @@ python helpers/transcribe.py <video.mp4> --tts-provider piper
 The demo wrapper can later forward the same flag:
 
 ```bash
-python travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider piper
+python travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider piper --piper-voice en_US-lessac-low
 ```
 
-Do not enable this flag in the runtime path until the provider adapter is
-implemented and tested.
+Current runtime support is optional only. If Piper is not installed, the helper
+raises a clear install message and the default placeholder path remains intact.
 
 ## Provider Contract
 
 Piper should follow the same boundary the current providers use:
 
 - input: source video path, edit directory, optional language hint, optional
-  speaker hint, and a verbosity flag
+  speaker hint, optional Piper voice name, optional Piper data dir, and a
+  verbosity flag
 - output: transcript JSON written to
   `<edit_dir>/transcripts/<video_stem>.json`
 - compatibility: keep the transcript shape unchanged so downstream packing,
@@ -77,9 +78,7 @@ Rollback should be simple:
 
 1. leave `placeholder` as the default provider
 2. keep `elevenlabs` behavior unchanged
-3. keep `helpers/tts_providers/piper.py` as a stub until the integration is
-   verified
+3. keep `helpers/tts_providers/piper.py` isolated as the optional adapter
 4. if Piper causes issues, stop routing to it and fall back to placeholder mode
 5. remove only the Piper adapter code and any provider-specific configuration,
    not the transcript contract or render helpers
-

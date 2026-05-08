@@ -18,6 +18,13 @@ cd ~/Documents/video-use-ai
 ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider placeholder
 ```
 
+Optional Piper path:
+
+```bash
+cd ~/Documents/video-use-ai
+.venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider piper --piper-voice en_US-lessac-low --piper-data-dir ~/Library/Application\ Support/video-use-ai/piper
+```
+
 Optional input video:
 
 ```bash
@@ -44,7 +51,7 @@ The script runs the existing workflow in order:
 
 1. Creates a temporary workspace.
 2. Uses the provided input video, or generates a tiny demo MP4 with `ffmpeg`.
-3. Runs placeholder transcription mode.
+3. Runs the selected transcription provider. Placeholder remains the default, and Piper can be selected explicitly when installed.
 4. Packs transcripts into `takes_packed.md`.
 5. Generates a timeline preview PNG.
 6. Builds an EDL and renders a preview MP4.
@@ -77,7 +84,7 @@ dummy
 test
 ```
 
-The demo wrapper forwards `--tts-provider` into the transcription helper.
+The demo wrapper forwards `--tts-provider`, `--piper-voice`, and `--piper-data-dir` into the transcription helper.
 
 ## Expected Outputs
 

@@ -3,9 +3,8 @@
 This repo currently uses a placeholder transcript path when `ELEVENLABS_API_KEY`
 is missing or set to a local placeholder value. That is the safest baseline.
 The provider routing boundary now lives in `helpers/transcribe.py` and the
-provider adapters are split under `helpers/tts_providers/`. The next step is to
-add real local engines one at a time without changing the current default
-behavior.
+provider adapters are split under `helpers/tts_providers/`. Piper is now an
+optional provider path; the next local engine candidate after that is Kokoro.
 
 ## Provider Comparison
 
@@ -76,26 +75,25 @@ Recommended semantics:
 
 ## Next Provider Candidate
 
-**Piper**
+**Kokoro**
 
 Reasoning:
 
-- simplest local install of the realistic options
-- low dependency risk compared with the other local engines
-- good macOS compatibility for a first pass
-- minimal change to the current pipeline because the output contract is simple
-
-Use Piper as the first local provider after placeholder, then evaluate Kokoro
-for a higher-quality follow-up once the routing layer is stable.
+- Piper is already wired as an optional provider path
+- Kokoro is the next realistic local engine to evaluate for quality gains
+- it remains lighter than the more ambitious options and should still fit the
+  current transcript contract
+- the provider routing layer is already in place, so Kokoro can be added one
+  adapter at a time
 
 ## Piper Implementation Checklist
 
-1. pick a local model directory convention and document it
-2. wire a tiny adapter in `helpers/tts_providers/piper.py`
+1. keep `placeholder` as the default provider
+2. allow `--tts-provider piper` to remain optional, not required
 3. keep the transcript JSON output identical to the current contract
 4. add provider-specific configuration without touching render code
-5. verify one macOS smoke test before enabling any public CLI route
-6. keep rollback simple by leaving placeholder as the default provider
+5. verify one macOS smoke test before broadening the provider set
+6. keep rollback simple by leaving placeholder and ElevenLabs untouched
 
 ## Safest First Implementation Path
 

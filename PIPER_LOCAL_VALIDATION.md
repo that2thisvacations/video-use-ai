@@ -1,7 +1,8 @@
 # Piper Local Validation
 
 This document records a standalone, non-destructive Piper validation on macOS.
-It does not wire Piper into the repo runtime.
+It does not wire Piper into the repo runtime. The repo now has optional Piper
+support, but the default provider remains `placeholder`.
 
 ## Environment Detected
 
@@ -9,6 +10,7 @@ It does not wire Piper into the repo runtime.
 - Architecture: `x86_64`
 - ffmpeg: available at `/usr/local/bin/ffmpeg`
 - Repo virtualenv: `.venv` exists and uses `Python 3.11.15`
+- Repo virtualenv Piper availability: not installed at validation time
 
 ## Safest Mac Install Method
 
@@ -22,7 +24,13 @@ pip install -U pip setuptools wheel
 pip install piper-tts
 ```
 
-This keeps the repo runtime untouched and makes rollback trivial.
+This keeps the repo runtime untouched and makes rollback trivial. The optional
+repo path later is:
+
+```bash
+cd ~/Documents/video-use-ai
+.venv/bin/pip install piper-tts
+```
 
 ## Recommended Lightweight English Voice Model
 
@@ -49,7 +57,7 @@ For a persistent user-level path, use something like:
 ~/Library/Application Support/video-use-ai/piper/
 ```
 
-The provider adapter should read the model path from configuration later.
+The provider adapter reads the model path from the `--piper-data-dir` CLI flag.
 
 ## Standalone CLI Test Commands
 
@@ -77,6 +85,13 @@ wave.Error: # channels not specified
 
 The documented `-- 'text'` form worked.
 
+For the repo runtime, the missing-Piper path should now fail gracefully with a
+clear install message instead of changing the default provider:
+
+```bash
+ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 helpers/transcribe.py /tmp/test_clip.mp4 --tts-provider piper
+```
+
 ## Expected WAV Output
 
 Successful validation produced:
@@ -100,10 +115,9 @@ Rollback is straightforward:
    folder
 3. leave the repo runtime unchanged
 4. continue using `placeholder` or `elevenlabs` in the existing provider
-   routing until Piper is explicitly integrated later
+   routing if Piper is removed or unavailable
 
 ## Validation Result
 
 Standalone Piper installation succeeded in a throwaway temp venv and generated
 a short WAV file without modifying the repo runtime.
-

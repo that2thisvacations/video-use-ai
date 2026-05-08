@@ -8,6 +8,5 @@ time.
 from __future__ import annotations
 
 PROVIDER_NAMES = ("placeholder", "elevenlabs", "piper")
-ACTIVE_PROVIDER_NAMES = ("placeholder", "elevenlabs")
-FUTURE_PROVIDER_NAMES = ("piper",)
-
+ACTIVE_PROVIDER_NAMES = ("placeholder", "elevenlabs", "piper")
+FUTURE_PROVIDER_NAMES = ()

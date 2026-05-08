@@ -6,7 +6,7 @@
 
 The workflow is:
 
-1. Transcribe source videos with a selectable TTS provider route, defaulting to placeholder mode and using ElevenLabs Scribe only when explicitly selected. The provider adapters now live under `helpers/tts_providers/`.
+1. Transcribe source videos with a selectable TTS provider route, defaulting to placeholder mode and using ElevenLabs Scribe only when explicitly selected. The provider adapters now live under `helpers/tts_providers/`, and Piper is available as an optional provider path.
 2. Pack word-level transcripts into a compact editorial view.
 3. Have the agent choose cuts from transcript timestamps and silence gaps.
 4. Render an edit with ffmpeg, color grading, audio fades, optional overlays, and optional burned-in subtitles.
@@ -94,8 +94,8 @@ python ~/Documents/video-use-ai/helpers/render.py /path/to/videos/edit/edl.json 
 - `install.md` - first-time setup instructions for agents, ffmpeg, dependencies, and API key setup.
 - `SKILL.md` - core editing rules, production workflow, helper descriptions, EDL format, subtitle rules, grading guidance, and animation guidance.
 - `helpers/` - executable Python helper scripts:
-  - `transcribe.py` - provider router for placeholder or ElevenLabs Scribe transcription.
-  - `tts_providers/` - provider adapters for placeholder and ElevenLabs, plus a Piper stub.
+  - `transcribe.py` - provider router for placeholder, ElevenLabs, or optional Piper transcription.
+  - `tts_providers/` - provider adapters for placeholder, ElevenLabs, and Piper.
   - `transcribe_batch.py` - transcribes a folder of videos in parallel.
   - `pack_transcripts.py` - turns raw transcript JSON into compact markdown.
   - `timeline_view.py` - creates filmstrip, waveform, word-label, and silence-gap PNG views.
@@ -120,11 +120,17 @@ The transcription helper also accepts:
 ```bash
 --tts-provider placeholder
 --tts-provider elevenlabs
+--tts-provider piper
+--piper-voice en_US-lessac-low
+--piper-data-dir /path/to/piper_data
 ```
 
 `placeholder` is the default. `elevenlabs` only uses the live API when a real
 `ELEVENLABS_API_KEY` is present; otherwise it falls back to placeholder mode
 and prints a warning.
+
+`piper` is optional. If it is not installed in the current Python environment,
+the helper exits with install guidance and does not change the default provider.
 
 The routing boundary is now split into small provider modules under
 `helpers/tts_providers/` so future local engines can be added without changing
@@ -134,7 +140,7 @@ Current provider architecture:
 
 - `placeholder` - default smoke-test path
 - `elevenlabs` - live ElevenLabs Scribe path when a real key is present
-- `piper` - stub only, documented for the next local provider integration
+- `piper` - optional local provider path with standalone voice/model flags
 
 The TravelBuddy demo wrapper also forwards `--tts-provider` into the
 transcription helper so the full demo workflow can be switched without changing

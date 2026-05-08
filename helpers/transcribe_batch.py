@@ -11,6 +11,7 @@ Usage:
     python helpers/transcribe_batch.py <videos_dir> --num-speakers 2
     python helpers/transcribe_batch.py <videos_dir> --edit-dir /custom/edit
     python helpers/transcribe_batch.py <videos_dir> --tts-provider elevenlabs
+    python helpers/transcribe_batch.py <videos_dir> --tts-provider piper --piper-voice en_US-lessac-low
 """
 
 from __future__ import annotations
@@ -61,8 +62,20 @@ def main() -> None:
         "--tts-provider",
         type=str,
         default="placeholder",
-        choices=["placeholder", "elevenlabs"],
+        choices=["placeholder", "elevenlabs", "piper"],
         help="TTS provider selection (default: placeholder)",
+    )
+    ap.add_argument(
+        "--piper-voice",
+        type=str,
+        default="en_US-lessac-low",
+        help="Piper voice name (default: en_US-lessac-low)",
+    )
+    ap.add_argument(
+        "--piper-data-dir",
+        type=Path,
+        default=None,
+        help="Piper data directory (default: <edit-dir>/piper_data)",
     )
     args = ap.parse_args()
 
@@ -101,6 +114,8 @@ def main() -> None:
                 tts_provider=args.tts_provider,
                 language=args.language,
                 num_speakers=args.num_speakers,
+                piper_voice=args.piper_voice,
+                piper_data_dir=args.piper_data_dir,
                 verbose=False,
             ): v
             for v in pending

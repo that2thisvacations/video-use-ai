@@ -57,6 +57,13 @@ Use one explicit provider flag and keep the placeholder default available:
 --tts-provider piper
 ```
 
+Current repo support now covers:
+
+```bash
+--tts-provider placeholder
+--tts-provider elevenlabs
+```
+
 Recommended semantics:
 
 - `placeholder` keeps the current local smoke-test behavior.
@@ -69,10 +76,11 @@ Recommended semantics:
 
 1. Add `--tts-provider` parsing to `helpers/transcribe.py`.
 2. Keep `placeholder` as the default.
-3. Introduce a provider registry or small adapter layer in the transcribe helper.
-4. Implement `piper` or `kokoro` first, not both at once.
-5. Reuse the existing transcript JSON contract so render code stays untouched.
-6. Add one smoke test per provider path once the first backend lands.
+3. Keep `elevenlabs` as the only real backend until a local provider lands.
+4. Introduce a provider registry or small adapter layer in the transcribe helper.
+5. Implement `piper` or `kokoro` first, not both at once.
+6. Reuse the existing transcript JSON contract so render code stays untouched.
+7. Add one smoke test per provider path once the first backend lands.
 
 ## Architecture Recommendation
 

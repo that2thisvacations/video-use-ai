@@ -15,6 +15,7 @@ Usage:
     python helpers/transcribe.py <video_path> --edit-dir /custom/edit
     python helpers/transcribe.py <video_path> --language en
     python helpers/transcribe.py <video_path> --num-speakers 2
+    python helpers/transcribe.py <video_path> --tts-provider elevenlabs
 """
 
 from __future__ import annotations
@@ -35,6 +36,8 @@ import requests
 SCRIBE_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 PLACEHOLDER_KEYS = {"", "placeholder", "dummy", "test"}
 PLACEHOLDER_WARNING = "Using placeholder audio because ELEVENLABS_API_KEY is not configured."
+TTS_PROVIDER_PLACEHOLDER = "placeholder"
+TTS_PROVIDER_ELEVENLABS = "elevenlabs"
 
 
 def load_api_key() -> str:
@@ -52,6 +55,25 @@ def load_api_key() -> str:
 
 def is_placeholder_key(api_key: str) -> bool:
     return api_key.strip().lower() in PLACEHOLDER_KEYS
+
+
+def resolve_tts_provider(requested_provider: str, api_key: str) -> tuple[str, bool]:
+    provider = requested_provider.strip().lower() or TTS_PROVIDER_PLACEHOLDER
+    if provider == TTS_PROVIDER_PLACEHOLDER:
+        if is_placeholder_key(api_key):
+            print(PLACEHOLDER_WARNING, file=sys.stderr, flush=True)
+        return provider, True
+    if provider == TTS_PROVIDER_ELEVENLABS and not is_placeholder_key(api_key):
+        return provider, False
+    print(PLACEHOLDER_WARNING, file=sys.stderr, flush=True)
+    if provider == TTS_PROVIDER_ELEVENLABS:
+        print(
+            "Requested tts provider 'elevenlabs' but no real ELEVENLABS_API_KEY was found; "
+            "using placeholder mode instead.",
+            file=sys.stderr,
+            flush=True,
+        )
+    return TTS_PROVIDER_PLACEHOLDER, True
 
 
 def get_video_duration(video: Path) -> float:
@@ -158,6 +180,7 @@ def transcribe_one(
     video: Path,
     edit_dir: Path,
     api_key: str,
+    tts_provider: str,
     language: str | None = None,
     num_speakers: int | None = None,
     verbose: bool = True,
@@ -175,8 +198,9 @@ def transcribe_one(
             print(f"cached: {out_path.name}")
         return out_path
 
-    if is_placeholder_key(api_key):
-        print(PLACEHOLDER_WARNING, file=sys.stderr, flush=True)
+    effective_provider, use_placeholder = resolve_tts_provider(tts_provider, api_key)
+
+    if use_placeholder:
         payload = build_placeholder_payload(video, edit_dir)
         out_path.write_text(json.dumps(payload, indent=2))
         if verbose:
@@ -185,7 +209,7 @@ def transcribe_one(
         return out_path
 
     if verbose:
-        print(f"  extracting audio from {video.name}", flush=True)
+        print(f"  extracting audio from {video.name} using {effective_provider}", flush=True)
 
     t0 = time.time()
     with tempfile.TemporaryDirectory() as tmp:
@@ -229,6 +253,13 @@ def main() -> None:
         default=None,
         help="Optional number of speakers when known. Improves diarization accuracy.",
     )
+    ap.add_argument(
+        "--tts-provider",
+        type=str,
+        default=TTS_PROVIDER_PLACEHOLDER,
+        choices=[TTS_PROVIDER_PLACEHOLDER, TTS_PROVIDER_ELEVENLABS],
+        help="TTS provider selection (default: placeholder)",
+    )
     args = ap.parse_args()
 
     video = args.video.resolve()
@@ -242,6 +273,7 @@ def main() -> None:
         video=video,
         edit_dir=edit_dir,
         api_key=api_key,
+        tts_provider=args.tts_provider,
         language=args.language,
         num_speakers=args.num_speakers,
     )

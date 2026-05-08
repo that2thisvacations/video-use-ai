@@ -94,7 +94,7 @@ python ~/Documents/video-use-ai/helpers/render.py /path/to/videos/edit/edl.json 
 - `install.md` - first-time setup instructions for agents, ffmpeg, dependencies, and API key setup.
 - `SKILL.md` - core editing rules, production workflow, helper descriptions, EDL format, subtitle rules, grading guidance, and animation guidance.
 - `helpers/` - executable Python helper scripts:
-  - `transcribe.py` - transcribes one video with ElevenLabs Scribe.
+  - `transcribe.py` - transcribes one video with a provider flag for placeholder or ElevenLabs Scribe.
   - `transcribe_batch.py` - transcribes a folder of videos in parallel.
   - `pack_transcripts.py` - turns raw transcript JSON into compact markdown.
   - `timeline_view.py` - creates filmstrip, waveform, word-label, and silence-gap PNG views.
@@ -113,6 +113,17 @@ Required for transcription:
 ```bash
 ELEVENLABS_API_KEY=
 ```
+
+The transcription helper also accepts:
+
+```bash
+--tts-provider placeholder
+--tts-provider elevenlabs
+```
+
+`placeholder` is the default. `elevenlabs` only uses the live API when a real
+`ELEVENLABS_API_KEY` is present; otherwise it falls back to placeholder mode
+and prints a warning.
 
 The code looks for this key in either:
 

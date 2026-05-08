@@ -6,7 +6,7 @@
 
 The workflow is:
 
-1. Transcribe source videos with a selectable TTS provider route, defaulting to placeholder mode and using ElevenLabs Scribe only when explicitly selected.
+1. Transcribe source videos with a selectable TTS provider route, defaulting to placeholder mode and using ElevenLabs Scribe only when explicitly selected. The provider adapters now live under `helpers/tts_providers/`.
 2. Pack word-level transcripts into a compact editorial view.
 3. Have the agent choose cuts from transcript timestamps and silence gaps.
 4. Render an edit with ffmpeg, color grading, audio fades, optional overlays, and optional burned-in subtitles.
@@ -94,7 +94,8 @@ python ~/Documents/video-use-ai/helpers/render.py /path/to/videos/edit/edl.json 
 - `install.md` - first-time setup instructions for agents, ffmpeg, dependencies, and API key setup.
 - `SKILL.md` - core editing rules, production workflow, helper descriptions, EDL format, subtitle rules, grading guidance, and animation guidance.
 - `helpers/` - executable Python helper scripts:
-  - `transcribe.py` - transcribes one video with a provider flag for placeholder or ElevenLabs Scribe.
+  - `transcribe.py` - provider router for placeholder or ElevenLabs Scribe transcription.
+  - `tts_providers/` - provider adapters for placeholder, ElevenLabs, and future local engines.
   - `transcribe_batch.py` - transcribes a folder of videos in parallel.
   - `pack_transcripts.py` - turns raw transcript JSON into compact markdown.
   - `timeline_view.py` - creates filmstrip, waveform, word-label, and silence-gap PNG views.
@@ -124,6 +125,10 @@ The transcription helper also accepts:
 `placeholder` is the default. `elevenlabs` only uses the live API when a real
 `ELEVENLABS_API_KEY` is present; otherwise it falls back to placeholder mode
 and prints a warning.
+
+The routing boundary is now split into small provider modules under
+`helpers/tts_providers/` so future local engines can be added without changing
+the transcript contract.
 
 The TravelBuddy demo wrapper also forwards `--tts-provider` into the
 transcription helper so the full demo workflow can be switched without changing

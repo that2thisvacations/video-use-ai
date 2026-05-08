@@ -1,4 +1,4 @@
-"""Transcribe a video with ElevenLabs Scribe.
+"""Transcribe a video with a selectable TTS provider.
 
 Extracts mono 16kHz audio via ffmpeg, uploads to Scribe with verbatim +
 diarize + audio events + word-level timestamps, writes the full response
@@ -6,7 +6,9 @@ to <edit_dir>/transcripts/<video_stem>.json.
 
 If ELEVENLABS_API_KEY is missing or set to a local placeholder value, writes
 a minimal placeholder transcript and a reusable silent WAV without calling
-ElevenLabs. This keeps the rest of the video pipeline runnable during setup.
+ElevenLabs. The provider-specific behavior now lives behind
+helpers/tts_providers/ so the current placeholder default stays intact while
+future local engines can be added with minimal pipeline churn.
 
 Cached: if the output file already exists, the upload is skipped.
 
@@ -23,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import importlib
 import wave
 import subprocess
 import sys
@@ -38,6 +41,10 @@ PLACEHOLDER_KEYS = {"", "placeholder", "dummy", "test"}
 PLACEHOLDER_WARNING = "Using placeholder audio because ELEVENLABS_API_KEY is not configured."
 TTS_PROVIDER_PLACEHOLDER = "placeholder"
 TTS_PROVIDER_ELEVENLABS = "elevenlabs"
+TTS_PROVIDER_MODULES = {
+    TTS_PROVIDER_PLACEHOLDER: "placeholder",
+    TTS_PROVIDER_ELEVENLABS: "elevenlabs",
+}
 
 
 def load_api_key() -> str:
@@ -74,6 +81,13 @@ def resolve_tts_provider(requested_provider: str, api_key: str) -> tuple[str, bo
             flush=True,
         )
     return TTS_PROVIDER_PLACEHOLDER, True
+
+
+def load_tts_provider_module(provider_name: str):
+    module_name = TTS_PROVIDER_MODULES.get(provider_name)
+    if module_name is None:
+        raise ValueError(f"unsupported tts provider: {provider_name}")
+    return importlib.import_module(f"tts_providers.{module_name}")
 
 
 def get_video_duration(video: Path) -> float:
@@ -189,47 +203,16 @@ def transcribe_one(
 
     Cached: returns existing path immediately if the transcript already exists.
     """
-    transcripts_dir = edit_dir / "transcripts"
-    transcripts_dir.mkdir(parents=True, exist_ok=True)
-    out_path = transcripts_dir / f"{video.stem}.json"
-
-    if out_path.exists():
-        if verbose:
-            print(f"cached: {out_path.name}")
-        return out_path
-
-    effective_provider, use_placeholder = resolve_tts_provider(tts_provider, api_key)
-
-    if use_placeholder:
-        payload = build_placeholder_payload(video, edit_dir)
-        out_path.write_text(json.dumps(payload, indent=2))
-        if verbose:
-            print(f"  saved placeholder transcript: {out_path.name}")
-            print(f"    placeholder audio: {payload['placeholder_audio']}")
-        return out_path
-
-    if verbose:
-        print(f"  extracting audio from {video.name} using {effective_provider}", flush=True)
-
-    t0 = time.time()
-    with tempfile.TemporaryDirectory() as tmp:
-        audio = Path(tmp) / f"{video.stem}.wav"
-        extract_audio(video, audio)
-        size_mb = audio.stat().st_size / (1024 * 1024)
-        if verbose:
-            print(f"  uploading {video.stem}.wav ({size_mb:.1f} MB)", flush=True)
-        payload = call_scribe(audio, api_key, language, num_speakers)
-
-    out_path.write_text(json.dumps(payload, indent=2))
-    dt = time.time() - t0
-
-    if verbose:
-        kb = out_path.stat().st_size / 1024
-        print(f"  saved: {out_path.name} ({kb:.1f} KB) in {dt:.1f}s")
-        if isinstance(payload, dict) and "words" in payload:
-            print(f"    words: {len(payload['words'])}")
-
-    return out_path
+    effective_provider, _use_placeholder = resolve_tts_provider(tts_provider, api_key)
+    provider_module = load_tts_provider_module(effective_provider)
+    return provider_module.transcribe(
+        video=video,
+        edit_dir=edit_dir,
+        api_key=api_key,
+        language=language,
+        num_speakers=num_speakers,
+        verbose=verbose,
+    )
 
 
 def main() -> None:

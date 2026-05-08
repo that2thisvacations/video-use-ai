@@ -2,8 +2,10 @@
 
 This repo currently uses a placeholder transcript path when `ELEVENLABS_API_KEY`
 is missing or set to a local placeholder value. That is the safest baseline.
-The next step is to introduce a provider switch in `helpers/transcribe.py`
-without changing the current default behavior.
+The provider routing boundary now lives in `helpers/transcribe.py` and the
+provider adapters are split under `helpers/tts_providers/`. The next step is to
+add real local engines one at a time without changing the current default
+behavior.
 
 ## Provider Comparison
 
@@ -31,9 +33,9 @@ Notes:
 
 ## Where Selection Should Route
 
-The future provider split should happen inside `helpers/transcribe.py`, because
-that file already owns the audio generation step that feeds the rest of the
-pipeline.
+The provider split now happens inside `helpers/transcribe.py`, which dispatches
+to `helpers/tts_providers/placeholder.py` or
+`helpers/tts_providers/elevenlabs.py`.
 
 Recommended routing shape:
 
@@ -88,13 +90,12 @@ for a higher-quality follow-up once the routing layer is stable.
 
 ## Safest First Implementation Path
 
-1. Add `--tts-provider` parsing to `helpers/transcribe.py`.
-2. Keep `placeholder` as the default.
-3. Keep `elevenlabs` as the only real backend until a local provider lands.
-4. Introduce a provider registry or small adapter layer in the transcribe helper.
-5. Implement `piper` or `kokoro` first, not both at once.
-6. Reuse the existing transcript JSON contract so render code stays untouched.
-7. Add one smoke test per provider path once the first backend lands.
+1. Keep `placeholder` as the default.
+2. Keep `elevenlabs` as the only real backend until a local provider lands.
+3. Add provider adapters one at a time under `helpers/tts_providers/`.
+4. Implement `piper` first as the least risky local follow-up.
+5. Reuse the existing transcript JSON contract so render code stays untouched.
+6. Add one smoke test per provider path once the first backend lands.
 
 ## Architecture Recommendation
 
@@ -102,7 +103,7 @@ Keep the transcribe helper as the provider boundary and avoid spreading provider
 logic into the demo wrapper or render pipeline. A simple shape is:
 
 - `helpers/transcribe.py` for provider selection and transcript output
-- `helpers/transcribe_backends/` for small provider adapters later
+- `helpers/tts_providers/` for provider adapters
 - `edit/transcripts/` for the unchanged JSON contract
 
 This makes the migration reversible and keeps the placeholder path available as

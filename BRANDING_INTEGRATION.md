@@ -72,6 +72,12 @@ Branded output path in the demo workflow:
 ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic
 ```
 
+Watermark tuning example:
+
+```bash
+ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --watermark-opacity 0.95
+```
+
 If the canonical assets are present, the wrapper should:
 
 - keep `edit/preview.mp4` unchanged
@@ -97,6 +103,15 @@ If the preview has no audio:
 - print a clear message that video-only branded export is being used
 - continue generating `edit/preview_branded.mp4`
 - keep `edit/preview.mp4` unchanged
+
+Watermark tuning defaults:
+
+- `--watermark-scale 0.22`
+- `--watermark-opacity 0.85`
+- `--watermark-margin 32`
+
+The tuning flags only apply when TravelBuddy branding is active and the
+canonical watermark asset exists.
 
 ## Safest Next Implementation Step
 

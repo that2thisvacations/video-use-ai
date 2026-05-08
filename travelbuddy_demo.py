@@ -36,6 +36,13 @@ class BrandingHooks:
     subtitle_style: str
 
 
+@dataclass(frozen=True)
+class WatermarkSettings:
+    scale: float
+    opacity: float
+    margin: int
+
+
 def log(step: int, total: int, message: str) -> None:
     print(f"[{step}/{total}] {message}", flush=True)
 
@@ -224,6 +231,7 @@ def build_branded_preview(
     preview_path: Path,
     branded_path: Path,
     hooks: BrandingHooks,
+    watermark: WatermarkSettings,
 ) -> bool:
     if not hooks.active:
         print("Branding disabled; skipping branded preview", flush=True)
@@ -250,6 +258,11 @@ def build_branded_preview(
             print("No audio detected; using video-only branded export", flush=True)
 
         print("Applying TravelBuddy watermark and end card...", flush=True)
+        watermark_filter = (
+            f"[1:v]format=rgba,colorchannelmixer=aa={watermark.opacity:.3f},"
+            f"scale=iw*{watermark.scale:.3f}:-1[wm];"
+            f"[0:v][wm]overlay=W-w-{watermark.margin}:H-h-{watermark.margin}:format=auto[outv]"
+        )
         watermark_cmd = [
             "ffmpeg",
             "-y",
@@ -258,10 +271,7 @@ def build_branded_preview(
             "-i",
             str(hooks.watermark_path),
             "-filter_complex",
-            (
-                "[1:v]scale=iw*0.22:-1[wm];"
-                "[0:v][wm]overlay=W-w-32:H-h-32:format=auto[outv]"
-            ),
+            watermark_filter,
             "-map",
             "[outv]",
             "-c:v",
@@ -391,10 +401,33 @@ def main() -> None:
     ap.add_argument("--input", type=Path, default=None, help="Optional input video path")
     ap.add_argument("--brand", type=str, default=DEFAULT_BRAND, help="Brand label placeholder")
     ap.add_argument("--style", type=str, default=DEFAULT_STYLE, help="Render style placeholder")
+    ap.add_argument(
+        "--watermark-scale",
+        type=float,
+        default=0.22,
+        help="TravelBuddy watermark scale multiplier",
+    )
+    ap.add_argument(
+        "--watermark-opacity",
+        type=float,
+        default=0.85,
+        help="TravelBuddy watermark opacity multiplier",
+    )
+    ap.add_argument(
+        "--watermark-margin",
+        type=int,
+        default=32,
+        help="TravelBuddy watermark margin in pixels",
+    )
     args = ap.parse_args()
 
     require_tools(["ffmpeg", "ffprobe"])
     hooks = resolve_branding_hooks(args.brand, args.style)
+    watermark = WatermarkSettings(
+        scale=args.watermark_scale,
+        opacity=args.watermark_opacity,
+        margin=args.watermark_margin,
+    )
 
     workspace = Path(tempfile.mkdtemp(prefix="travelbuddy_demo_")).resolve()
     edit_dir = workspace / "edit"
@@ -424,6 +457,11 @@ def main() -> None:
         print(f"  watermark hook: {hooks.watermark_path}", flush=True)
         print(f"  end card hook: {hooks.endcard_path}", flush=True)
         print(f"  subtitle style: {hooks.subtitle_style}", flush=True)
+        print(
+            "  watermark tuning: "
+            f"scale={watermark.scale:.3f} opacity={watermark.opacity:.3f} margin={watermark.margin}",
+            flush=True,
+        )
     else:
         print("Branding mode inactive; using default placeholders", flush=True)
     run(
@@ -476,6 +514,9 @@ def main() -> None:
             "watermark_path": str(hooks.watermark_path),
             "endcard_path": str(hooks.endcard_path),
             "subtitle_style": hooks.subtitle_style,
+            "watermark_scale": watermark.scale,
+            "watermark_opacity": watermark.opacity,
+            "watermark_margin": watermark.margin,
         }
         edl_path.write_text(json.dumps(edl, indent=2))
     preview_path = edit_dir / "preview.mp4"
@@ -496,7 +537,7 @@ def main() -> None:
     branded_path = edit_dir / "preview_branded.mp4"
     branded_generated = False
     if hooks.active:
-        branded_generated = build_branded_preview(preview_path, branded_path, hooks)
+        branded_generated = build_branded_preview(preview_path, branded_path, hooks, watermark)
         if branded_generated:
             print(f"Branded preview path: {branded_path}", flush=True)
         else:

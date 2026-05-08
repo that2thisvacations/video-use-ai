@@ -18,6 +18,12 @@ cd ~/Documents/video-use-ai
 ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --input /path/to/video.mp4 --brand TRAVELBUDDY --style cinematic
 ```
 
+Watermark tuning example:
+
+```bash
+ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --watermark-opacity 0.95
+```
+
 ## What It Does
 
 The script runs the existing workflow in order:
@@ -71,12 +77,19 @@ Expected files:
 - `edit/base_preview.mp4`
 - `edit/preview.mp4`
 - `edit/placeholder_audio/placeholder.wav`
+- `edit/preview_branded.mp4` when TravelBuddy branding is active and assets are present
 
 The script also prints:
 
 - output directory
 - preview video path
 - generated files
+
+TravelBuddy branding can be tuned with:
+
+- `--watermark-scale`
+- `--watermark-opacity`
+- `--watermark-margin`
 
 ## Future Extension Ideas
 

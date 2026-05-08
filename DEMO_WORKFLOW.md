@@ -29,7 +29,6 @@ Verified Piper path:
 
 ```bash
 cd ~/Documents/video-use-ai
-.venv/bin/python3.11 -m pip install piper-tts
 .venv/bin/python3.11 -m piper.download_voices en_US-lessac-low --data-dir ./models/piper
 .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider piper --piper-voice en_US-lessac-low --piper-data-dir ./models/piper
 ```
@@ -149,6 +148,7 @@ Expected files:
 - `edit/final_social.mp4` when `--social-ready` is selected
 - `edit/generated_script.json` when `--topic` is selected
 - `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
+- `edit/generated_script.json` also carries `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for local pacing and subtitle grouping
 
 The script also prints:
 
@@ -158,7 +158,7 @@ The script also prints:
 
 `final_social.mp4` is the convenience alias for the polished social-ready result. It copies the best available 9:16 social export, normally `preview_branded_916_captioned.mp4`.
 
-When `--topic` is provided, the wrapper generates a deterministic topic script and saves it to `edit/generated_script.json`. The `voice_text` field becomes the narration text for Piper.
+When `--topic` is provided, the wrapper generates a deterministic topic script and saves it to `edit/generated_script.json`. The `voice_chunks` field drives chunked Piper narration, `caption_groups` drives the first caption grouping pass, and `voice_text` remains the fallback narration string.
 
 TravelBuddy branding can be tuned with:
 
@@ -175,6 +175,7 @@ TravelBuddy branding can be tuned with:
 - Add a provider selector for additional local transcription backends.
 - Add content-type routing for future AI script generation and caption presets.
 - Add richer topic-to-script templates or a real AI-backed generator later, behind the same `generated_script.json` contract.
+- Add better narration chunk timing and caption emphasis once the static rhythm pass is approved.
 - Expand caption styles into animated subtitle treatments after the static overlay pass is validated.
 - Add an export mode that copies the preview into a named shareable folder.
 

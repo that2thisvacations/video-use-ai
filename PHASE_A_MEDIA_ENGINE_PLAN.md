@@ -53,6 +53,9 @@ script layer can later reuse the same JSON shape:
 - `hook`
 - `main_points`
 - `cta`
+- `voice_chunks`
+- `suggested_pause_ms`
+- `caption_groups`
 - `voice_text`
 
 ## Future Automation API Vision
@@ -118,5 +121,6 @@ caption layer is visually approved on real clips.
 The first topic-driven script pass now exists:
 
 - `--topic` writes `edit/generated_script.json`
-- `voice_text` from the generated script is passed to Piper when selected
+- `voice_chunks` from the generated script are joined for Piper narration when selected
+- `caption_groups` from the generated script are mirrored into the transcript JSON for caption grouping
 - placeholder mode stays unchanged unless `--topic` is used

@@ -143,9 +143,10 @@ Verified caption rendering behavior:
 
 - `cinematic_gold` now produces `edit/preview_branded_916_captioned.mp4`
 - captions are rendered as lightweight Python-generated overlay plates and composited with ffmpeg
+- topic-driven scripts can now provide `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for cleaner rhythm
 - if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
-- `--topic` produces `edit/generated_script.json` and can feed Piper narration text
+- `--topic` produces `edit/generated_script.json` and can feed chunked Piper narration plus caption grouping
 
 ## Placeholder Audio Mode
 
@@ -178,7 +179,8 @@ Future content pipeline notes:
 - export presets and caption styles are metadata only for now
 - `travelbuddy_demo.py` writes the selected preset/style/content metadata into `edit/edl.json`
 - script generation now has a deterministic local topic-to-script path in `edit/generated_script.json`
-- Piper can narrate the generated `voice_text` when `--topic` is provided
+- Piper can narrate the generated `voice_chunks` when `--topic` is provided, with `voice_text` as fallback
+- caption rendering prefers `caption_groups` when they are available in the transcript JSON
 - the first real preset behavior should stay additive and isolated to `cinematic_916`
 - the first caption behavior should stay additive and isolated to `cinematic_gold`
 - the social-ready wrapper should remain additive and should not replace the manual preset path

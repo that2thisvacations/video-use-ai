@@ -20,6 +20,7 @@ def transcribe(
     piper_voice: str | None = None,
     piper_data_dir: Path | None = None,
     narration_text: str | None = None,
+    narration_chunks: list[str] | None = None,
     verbose: bool = True,
 ) -> Path:
     transcripts_dir = edit_dir / "transcripts"

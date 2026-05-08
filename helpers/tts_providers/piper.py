@@ -20,6 +20,7 @@ Future implementation outline:
 3. synthesize a short WAV using the documented ``-- 'text'`` invocation
 4. write the same transcript JSON contract used by placeholder mode for now
 5. when a topic-generated narration string is provided, synthesize that text
+6. when chunked narration is available, join chunks with punctuation pauses
 
 If Piper is not installed in the current Python environment, this module raises
 a clear error with install guidance instead of changing the default provider.
@@ -94,6 +95,13 @@ def synthesize_wav(voice: str, data_dir: Path, out_wav: Path, text: str) -> None
     )
 
 
+def join_narration_chunks(chunks: list[str]) -> str:
+    normalized = [chunk.strip().rstrip(".!?") for chunk in chunks if chunk and chunk.strip()]
+    if not normalized:
+        return ""
+    return ". ".join(normalized).strip()
+
+
 def transcribe(
     video: Path,
     edit_dir: Path,
@@ -102,6 +110,7 @@ def transcribe(
     piper_voice: str | None = None,
     piper_data_dir: Path | None = None,
     narration_text: str | None = None,
+    narration_chunks: list[str] | None = None,
     verbose: bool = True,
 ) -> Path:
     transcripts_dir = edit_dir / "transcripts"
@@ -118,13 +127,16 @@ def transcribe(
     voice = (piper_voice or PIPER_DEFAULT_VOICE).strip() or PIPER_DEFAULT_VOICE
     data_dir = (piper_data_dir or (edit_dir / "piper_data")).resolve()
     audio_path = (edit_dir / "piper_audio" / f"{video.stem}.wav").resolve()
-    script_text = (narration_text or "placeholder transcript").strip() or "placeholder transcript"
+    chunk_text = join_narration_chunks(narration_chunks or [])
+    script_text = chunk_text or (narration_text or "placeholder transcript").strip() or "placeholder transcript"
 
     if verbose:
         print(f"  using Piper voice: {voice}", flush=True)
         print(f"  Piper data dir: {data_dir}", flush=True)
         print(f"  Piper audio path: {audio_path}", flush=True)
         print(f"  Piper narration length: {len(script_text)} chars", flush=True)
+        if chunk_text:
+            print(f"  Piper narration chunks: {len(narration_chunks or [])}", flush=True)
 
     download_voice(voice, data_dir)
     if not audio_path.exists() or audio_path.stat().st_size == 0:

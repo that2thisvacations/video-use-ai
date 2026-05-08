@@ -227,7 +227,8 @@ Scope:
 
 - accept `--topic` in the demo wrapper
 - generate a deterministic `edit/generated_script.json`
-- feed `voice_text` into the Piper narration path when available
+- feed chunked `voice_chunks` into the Piper narration path when available
+- mirror `caption_groups` into the transcript JSON for cleaner caption breaks
 - keep placeholder mode and manual preset selection intact
 
 Deliverable:
@@ -235,6 +236,7 @@ Deliverable:
 - a lightweight topic-to-script bridge
 - a stable JSON contract for future AI script generation
 - a small abstraction point for future idea-driven travel prompts
+- cleaner pacing in social renders without changing the core render engine
 
 ### Phase 5: Deployment Path
 

@@ -93,6 +93,9 @@ SCRIPT_TEMPLATES = {
 }
 
 
+SUGGESTED_PAUSE_MS = 220
+
+
 def normalize_content_type(content_type: str) -> str:
     content_key = content_type.strip().lower()
     if content_key not in CONTENT_TYPES:
@@ -110,6 +113,53 @@ def get_routing_hint(content_type: str) -> str:
     return SCRIPT_ROUTING_HINTS[content_key]
 
 
+def build_voice_chunks(
+    headline: str,
+    hook: str,
+    main_points: list[str],
+    cta: str,
+) -> list[str]:
+    chunks = [headline.strip(), hook.strip(), *[point.strip() for point in main_points], cta.strip()]
+    return [chunk for chunk in chunks if chunk]
+
+
+def build_caption_groups(
+    headline: str,
+    hook: str,
+    main_points: list[str],
+    cta: str,
+) -> list[str]:
+    groups: list[str] = []
+    intro = " ".join(part for part in [headline.strip(), hook.strip()] if part)
+    if intro:
+        groups.append(intro)
+
+    points = [point.strip() for point in main_points if point.strip()]
+    if points:
+        if len(points) == 1:
+            groups.append(points[0])
+        elif len(points) == 2:
+            groups.append(" ".join(points))
+        else:
+            groups.append(" ".join(points[:2]))
+            tail = " ".join(points[2:])
+            if tail:
+                groups.append(tail)
+
+    cta_text = cta.strip()
+    if cta_text:
+        groups.append(cta_text)
+
+    return [group for group in groups if group]
+
+
+def join_voice_chunks(chunks: list[str]) -> str:
+    normalized = [chunk.strip().rstrip(".!?") for chunk in chunks if chunk and chunk.strip()]
+    if not normalized:
+        return ""
+    return ". ".join(normalized).strip()
+
+
 def generate_script_stub(
     topic: str,
     content_type: str,
@@ -125,7 +175,9 @@ def generate_script_stub(
     hook = template["hook"]
     main_points = [point.format(topic=topic_text) for point in template["main_points"]]
     cta = template["cta"]
-    voice_text = " ".join([headline, hook, *main_points, cta]).replace("  ", " ")
+    voice_chunks = build_voice_chunks(headline, hook, main_points, cta)
+    caption_groups = build_caption_groups(headline, hook, main_points, cta)
+    voice_text = join_voice_chunks(voice_chunks)
     routing_hint = get_routing_hint(content_key)
     return {
         "brand": brand.strip().upper() or "TRAVELBUDDY",
@@ -138,11 +190,15 @@ def generate_script_stub(
         "hook": hook,
         "main_points": main_points,
         "cta": cta,
+        "voice_chunks": voice_chunks,
+        "suggested_pause_ms": SUGGESTED_PAUSE_MS,
+        "caption_groups": caption_groups,
         "voice_text": shorten(voice_text, width=1200, placeholder=""),
         "notes": [
             "future LLM call site",
             "keep transcript contract unchanged",
             "route content type into travel-specific script prompts",
+            "deterministic voice chunking for social pacing",
             "deterministic template output for local-first workflow",
         ],
     }

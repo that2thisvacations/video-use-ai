@@ -83,6 +83,12 @@ def main() -> None:
         default=None,
         help="Optional narration text override used by Piper",
     )
+    ap.add_argument(
+        "--narration-chunk",
+        action="append",
+        default=None,
+        help="Optional narration chunk override used by Piper (repeatable)",
+    )
     args = ap.parse_args()
 
     videos_dir = args.videos_dir.resolve()
@@ -120,6 +126,7 @@ def main() -> None:
                 piper_voice=args.piper_voice,
                 piper_data_dir=args.piper_data_dir,
                 narration_text=args.narration_text,
+                narration_chunks=args.narration_chunk,
                 verbose=False,
             ): v
             for v in pending

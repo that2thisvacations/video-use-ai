@@ -73,6 +73,15 @@ def write_generated_script(edit_dir: Path, script: dict[str, object]) -> Path:
     return out_path
 
 
+def augment_transcript_with_script(transcript_path: Path, script: dict[str, object]) -> None:
+    transcript = json.loads(transcript_path.read_text())
+    transcript["voice_chunks"] = script.get("voice_chunks", [])
+    transcript["suggested_pause_ms"] = script.get("suggested_pause_ms")
+    transcript["caption_groups"] = script.get("caption_groups", [])
+    transcript["generated_script_path"] = str(transcript_path.parent.parent / "generated_script.json")
+    transcript_path.write_text(json.dumps(transcript, indent=2))
+
+
 def log(step: int, total: int, message: str) -> None:
     print(f"[{step}/{total}] {message}", flush=True)
 
@@ -252,7 +261,35 @@ def ass_color_from_hex(hex_color: str) -> str:
     return f"&H00{b.upper()}{g.upper()}{r.upper()}"
 
 
-def build_caption_cues(transcript: dict) -> list[tuple[float, float, str]]:
+def build_caption_cues(transcript: dict, total_duration: float | None = None) -> list[tuple[float, float, str]]:
+    caption_groups = transcript.get("caption_groups")
+    if isinstance(caption_groups, list) and caption_groups:
+        cleaned_groups: list[str] = []
+        for group in caption_groups:
+            if isinstance(group, str):
+                text = " ".join(group.strip().split())
+            elif isinstance(group, dict):
+                text = " ".join(str(group.get("text", "")).strip().split())
+            else:
+                continue
+            if text:
+                cleaned_groups.append(text)
+
+        if cleaned_groups:
+            duration = total_duration
+            if duration is None:
+                duration = float(transcript.get("source_duration") or len(cleaned_groups) * 1.2)
+            duration = max(0.45, float(duration))
+            group_span = duration / max(1, len(cleaned_groups))
+            cues: list[tuple[float, float, str]] = []
+            for idx, text in enumerate(cleaned_groups):
+                start = idx * group_span
+                end = duration if idx == len(cleaned_groups) - 1 else min(duration, start + group_span * 0.92)
+                if end <= start:
+                    end = start + 0.45
+                cues.append((float(start), float(end), text.upper()))
+            return cues
+
     words = [
         w
         for w in transcript.get("words", [])
@@ -430,8 +467,9 @@ def build_caption_overlay_assets(
     style: CaptionStyle,
     preset: ExportPreset,
     asset_dir: Path,
+    total_duration: float | None = None,
 ) -> list[tuple[float, float, Path]]:
-    cues = build_caption_cues(transcript)
+    cues = build_caption_cues(transcript, total_duration=total_duration)
     if not cues:
         raise ValueError("no usable caption cues")
 
@@ -835,15 +873,25 @@ def build_captioned_vertical_export(
         return True
 
     transcript = json.loads(transcript_path.read_text())
-    cues = build_caption_cues(transcript)
+    vertical_duration = probe_duration(vertical_path)
+    cues = build_caption_cues(transcript, total_duration=vertical_duration)
     if not cues:
         print("  warning: transcript timings incomplete; copying vertical export without captions", flush=True)
         shutil.copy2(vertical_path, out_path)
         return True
 
     asset_dir = out_path.parent / "caption_overlays" / preset.name / caption_style.name
+    caption_groups = transcript.get("caption_groups")
+    if isinstance(caption_groups, list) and caption_groups:
+        print(f"  caption groups: {len(caption_groups)}", flush=True)
     try:
-        overlays = build_caption_overlay_assets(transcript, caption_style, preset, asset_dir)
+        overlays = build_caption_overlay_assets(
+            transcript,
+            caption_style,
+            preset,
+            asset_dir,
+            total_duration=vertical_duration,
+        )
     except ValueError:
         print("  warning: caption cues unavailable; copying vertical export without captions", flush=True)
         shutil.copy2(vertical_path, out_path)
@@ -1085,9 +1133,15 @@ def main() -> None:
         print("Branding mode inactive; using default placeholders", flush=True)
     generated_script_path: Path | None = None
     narration_text: str | None = None
+    narration_chunks: list[str] | None = None
     if args.topic:
         generated_script_path = write_generated_script(edit_dir, content_metadata.script_stub)
         narration_text = str(content_metadata.script_stub.get("voice_text", "")).strip() or None
+        narration_chunks = [
+            str(chunk).strip()
+            for chunk in content_metadata.script_stub.get("voice_chunks", [])
+            if str(chunk).strip()
+        ]
         print(f"  topic: {args.topic}", flush=True)
         print(f"  generated headline: {content_metadata.script_stub.get('headline', '')}", flush=True)
         print(f"  content type: {content_metadata.content_type}", flush=True)
@@ -1110,7 +1164,14 @@ def main() -> None:
         transcribe_cmd.extend(["--piper-data-dir", str(args.piper_data_dir)])
     if narration_text:
         transcribe_cmd.extend(["--narration-text", narration_text])
+    for chunk in narration_chunks or []:
+        transcribe_cmd.extend(["--narration-chunk", chunk])
     run(transcribe_cmd, cwd=REPO_ROOT)
+
+    if generated_script_path is not None:
+        transcript_path = edit_dir / "transcripts" / f"{Path(source_name).stem}.json"
+        if transcript_path.exists():
+            augment_transcript_with_script(transcript_path, content_metadata.script_stub)
 
     log(3, 5, "Packing transcripts...")
     run(
@@ -1168,6 +1229,8 @@ def main() -> None:
         if generated_script_path is not None:
             edl["generated_script_path"] = str(generated_script_path)
             edl.setdefault("metadata", {})["topic"] = args.topic
+            edl.setdefault("metadata", {})["voice_chunks"] = content_metadata.script_stub.get("voice_chunks", [])
+            edl.setdefault("metadata", {})["caption_groups"] = content_metadata.script_stub.get("caption_groups", [])
         edl_path.write_text(json.dumps(edl, indent=2))
     preview_path = edit_dir / "preview.mp4"
     run(

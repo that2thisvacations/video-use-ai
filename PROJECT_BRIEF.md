@@ -133,6 +133,12 @@ Phase A metadata modules:
 - `helpers/caption_styles.py` for subtitle style metadata and future caption treatment hints
 - `helpers/script_engine.py` for content-type routing stubs and future script-generation hooks
 
+Verified vertical export behavior:
+
+- `cinematic_916` now produces `edit/preview_branded_916.mp4`
+- the vertical export is 1080x1920 and is built from the branded preview with a safe center-crop
+- the stable 16:9 `preview.mp4` and `preview_branded.mp4` outputs remain unchanged
+
 ## Placeholder Audio Mode
 
 For local setup or demos without a real provider, transcription falls back to placeholder mode when `--tts-provider placeholder` is selected.
@@ -170,3 +176,4 @@ Future content pipeline notes:
 - export presets and caption styles are metadata only for now
 - `travelbuddy_demo.py` writes the selected preset/style/content metadata into `edit/edl.json`
 - script generation remains stubbed until the AI content layer is intentionally added
+- the first real preset behavior should stay additive and isolated to `cinematic_916`

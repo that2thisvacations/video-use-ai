@@ -52,6 +52,20 @@ Phase A metadata example:
   --content-type mentor_pitch
 ```
 
+Verified vertical export behavior:
+
+```bash
+.venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider placeholder --export-preset cinematic_916
+```
+
+This produces:
+
+- `edit/preview.mp4`
+- `edit/preview_branded.mp4`
+- `edit/preview_branded_916.mp4`
+
+`preview_branded_916.mp4` is a real 1080x1920 center-cropped export built from the branded preview. The stable 16:9 outputs remain unchanged.
+
 Watermark tuning example:
 
 ```bash
@@ -107,6 +121,7 @@ Expected files:
 - `edit/placeholder_audio/placeholder.wav`
 - `edit/piper_audio/<source>.wav` when Piper is selected and installed
 - `edit/preview_branded.mp4` when TravelBuddy branding is active and assets are present
+- `edit/preview_branded_916.mp4` when `--export-preset cinematic_916` is selected
 - `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
 
 The script also prints:

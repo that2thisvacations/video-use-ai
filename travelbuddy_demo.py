@@ -201,6 +201,19 @@ def resolve_caption_style(name: str) -> CaptionStyle:
     return get_caption_style(name)
 
 
+def preset_dimensions(preset: ExportPreset) -> tuple[int, int]:
+    width_str, height_str = preset.resolution.lower().split("x", 1)
+    return int(width_str), int(height_str)
+
+
+def log_preset_metadata(preset: ExportPreset) -> None:
+    print(f"  export preset: {preset.name} -> {preset.resolution} ({preset.aspect_ratio})", flush=True)
+    print(f"  subtitle safe zone: {preset.subtitle_safe_zone}", flush=True)
+    print(f"  watermark safe zone: {preset.watermark_safe_zone}", flush=True)
+    print(f"  end card safe zone: {preset.end_card_safe_zone}", flush=True)
+    print(f"  output suffix: {preset.output_suffix}", flush=True)
+
+
 def build_content_metadata(
     export_preset: ExportPreset,
     caption_style: CaptionStyle,
@@ -456,6 +469,50 @@ def build_branded_preview(
     return True
 
 
+def build_vertical_export(
+    branded_path: Path,
+    out_path: Path,
+    preset: ExportPreset,
+) -> bool:
+    if preset.name != "cinematic_916":
+        print(f"Vertical export preset metadata only: {preset.name}", flush=True)
+        return False
+
+    width, height = preset_dimensions(preset)
+    has_audio = has_audio_stream(branded_path)
+    print("Building vertical social export from branded preview...", flush=True)
+    print(f"  target resolution: {width}x{height}", flush=True)
+    log_preset_metadata(preset)
+    print(f"  output path: {out_path}", flush=True)
+
+    filter_complex = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(branded_path),
+        "-vf",
+        filter_complex,
+        "-map",
+        "0:v:0",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "18",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+    ]
+    if has_audio:
+        cmd.extend(["-map", "0:a", "-c:a", "copy"])
+    cmd.append(str(out_path))
+    run(cmd)
+    return True
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run the TravelBuddy placeholder demo workflow")
     ap.add_argument("--input", type=Path, default=None, help="Optional input video path")
@@ -570,11 +627,7 @@ def main() -> None:
             f"scale={watermark.scale:.3f} opacity={watermark.opacity:.3f} margin={watermark.margin}",
             flush=True,
         )
-        print(
-            "  export preset: "
-            f"{export_preset.name} -> {export_preset.resolution} ({export_preset.aspect_ratio})",
-            flush=True,
-        )
+        log_preset_metadata(export_preset)
         print(
             "  caption style: "
             f"{caption_style.name} / content type: {content_metadata.content_type}",
@@ -675,6 +728,11 @@ def main() -> None:
         branded_generated = build_branded_preview(preview_path, branded_path, hooks, watermark)
         if branded_generated:
             print(f"Branded preview path: {branded_path}", flush=True)
+            if export_preset.name == "cinematic_916":
+                branded_916_path = edit_dir / "preview_branded_916.mp4"
+                vertical_generated = build_vertical_export(branded_path, branded_916_path, export_preset)
+                if vertical_generated:
+                    print(f"Branded 9:16 preview path: {branded_916_path}", flush=True)
         else:
             print("Branding hooks were present but no branded export was generated", flush=True)
     else:

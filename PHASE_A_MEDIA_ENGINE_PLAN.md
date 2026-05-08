@@ -75,6 +75,17 @@ The safest version is a local queue first, with no remote orchestration.
 1. Keep preset/style/script modules as metadata only.
 2. Record chosen metadata in `edit/edl.json`.
 3. Use the metadata to drive documentation and operator prompts.
-4. Add subtitle rendering presets only after reviewing real outputs.
-5. Add export-template behavior only after the new presets prove useful.
+4. Add one real export behavior at a time, starting with `cinematic_916`.
+5. Add subtitle rendering presets only after reviewing real outputs.
 6. Add AI script generation last, behind an explicit content-type route.
+
+## Phase B Verification Note
+
+The first real preset behavior now exists for `cinematic_916`:
+
+- the demo still generates the stable `preview.mp4`
+- the branded 16:9 export remains `preview_branded.mp4`
+- the new vertical export is `preview_branded_916.mp4`
+- the vertical output is 1080x1920 and uses a center-crop strategy
+
+Other presets remain metadata-only until they are intentionally implemented.

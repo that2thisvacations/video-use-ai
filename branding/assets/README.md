@@ -51,6 +51,16 @@ These are the filenames the demo workflow should expect now:
 
 Placeholder text files are only needed when a real PNG is missing. When the PNG exists, the placeholder note should be removed.
 
+The canonical assets above are the ones the demo workflow should use by default.
+
+## Alternates
+
+Optional alternate assets live in:
+
+- `branding/assets/alternates/`
+
+These files are not used by default. They are reserved for backup watermark variants, footer treatments, and other experimental brand art.
+
 ## Background Guidance
 
 - keep all final PNG assets transparent unless they are intentionally full-frame cards

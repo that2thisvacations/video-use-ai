@@ -41,6 +41,16 @@ Place finished TravelBuddy PNG assets here:
 - `travelbuddy_circle_founder_mark.png`: alternate watermark or avatar-style brand mark for smaller UI placements
 - `travelbuddy_luxury_endcard.png`: closing card for premium or luxury-themed TravelBuddy demos
 
+## Current Canonical Files
+
+These are the filenames the demo workflow should expect now:
+
+- `branding/assets/watermarks/travelbuddy_lion_watermark.png`
+- `branding/assets/watermarks/travelbuddy_circle_founder_mark.png`
+- `branding/assets/endcards/travelbuddy_luxury_endcard.png`
+
+Placeholder text files are only needed when a real PNG is missing. When the PNG exists, the placeholder note should be removed.
+
 ## Background Guidance
 
 - keep all final PNG assets transparent unless they are intentionally full-frame cards

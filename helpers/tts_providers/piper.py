@@ -1,6 +1,6 @@
 """Piper provider stub.
 
-Expected future inputs:
+Expected input:
 - video: source clip Path
 - edit_dir: output workspace Path
 - api_key: retained for interface compatibility, likely unused
@@ -8,9 +8,15 @@ Expected future inputs:
 - num_speakers: optional diarization hint
 - verbose: logging toggle
 
-Expected future outputs:
+Expected output:
 - transcript JSON written to <edit_dir>/transcripts/<video_stem>.json
 - a provider-generated local audio file reused by downstream steps
+
+Future implementation outline:
+1. load a Piper model and voice config from a local model directory
+2. synthesize narration audio for the current clip or script segment
+3. write the provider audio to the edit workspace
+4. emit the same transcript JSON contract the rest of the pipeline expects
 
 This stub is intentionally dependency-free until Piper is installed and wired.
 """
@@ -32,4 +38,3 @@ def transcribe(
         "Piper provider is not wired yet. Install Piper and implement "
         "helpers/tts_providers/piper.py before selecting --tts-provider piper."
     )
-

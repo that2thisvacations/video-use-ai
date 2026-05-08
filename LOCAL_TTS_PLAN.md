@@ -88,6 +88,15 @@ Reasoning:
 Use Piper as the first local provider after placeholder, then evaluate Kokoro
 for a higher-quality follow-up once the routing layer is stable.
 
+## Piper Implementation Checklist
+
+1. pick a local model directory convention and document it
+2. wire a tiny adapter in `helpers/tts_providers/piper.py`
+3. keep the transcript JSON output identical to the current contract
+4. add provider-specific configuration without touching render code
+5. verify one macOS smoke test before enabling any public CLI route
+6. keep rollback simple by leaving placeholder as the default provider
+
 ## Safest First Implementation Path
 
 1. Keep `placeholder` as the default.

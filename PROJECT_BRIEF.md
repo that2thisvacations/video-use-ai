@@ -95,7 +95,7 @@ python ~/Documents/video-use-ai/helpers/render.py /path/to/videos/edit/edl.json 
 - `SKILL.md` - core editing rules, production workflow, helper descriptions, EDL format, subtitle rules, grading guidance, and animation guidance.
 - `helpers/` - executable Python helper scripts:
   - `transcribe.py` - provider router for placeholder or ElevenLabs Scribe transcription.
-  - `tts_providers/` - provider adapters for placeholder, ElevenLabs, and future local engines.
+  - `tts_providers/` - provider adapters for placeholder and ElevenLabs, plus a Piper stub.
   - `transcribe_batch.py` - transcribes a folder of videos in parallel.
   - `pack_transcripts.py` - turns raw transcript JSON into compact markdown.
   - `timeline_view.py` - creates filmstrip, waveform, word-label, and silence-gap PNG views.
@@ -129,6 +129,12 @@ and prints a warning.
 The routing boundary is now split into small provider modules under
 `helpers/tts_providers/` so future local engines can be added without changing
 the transcript contract.
+
+Current provider architecture:
+
+- `placeholder` - default smoke-test path
+- `elevenlabs` - live ElevenLabs Scribe path when a real key is present
+- `piper` - stub only, documented for the next local provider integration
 
 The TravelBuddy demo wrapper also forwards `--tts-provider` into the
 transcription helper so the full demo workflow can be switched without changing

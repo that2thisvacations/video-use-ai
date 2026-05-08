@@ -1,0 +1,94 @@
+# Demo Workflow
+
+`travelbuddy_demo.py` is a thin orchestration wrapper around the existing verified local workflow.
+
+## Exact Command
+
+Run from the repo root:
+
+```bash
+cd ~/Documents/video-use-ai
+ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic
+```
+
+Optional input video:
+
+```bash
+cd ~/Documents/video-use-ai
+ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --input /path/to/video.mp4 --brand TRAVELBUDDY --style cinematic
+```
+
+## What It Does
+
+The script runs the existing workflow in order:
+
+1. Creates a temporary workspace.
+2. Uses the provided input video, or generates a tiny demo MP4 with `ffmpeg`.
+3. Runs placeholder transcription mode.
+4. Packs transcripts into `takes_packed.md`.
+5. Generates a timeline preview PNG.
+6. Builds an EDL and renders a preview MP4.
+
+It prints progress logs like:
+
+```text
+[1/5] Generating demo video...
+[2/5] Running transcript pipeline...
+[3/5] Packing transcripts...
+[4/5] Generating timeline preview...
+[5/5] Rendering preview...
+```
+
+## Placeholder Mode
+
+This workflow is designed to run with:
+
+```bash
+ELEVENLABS_API_KEY=placeholder
+```
+
+That activates the placeholder transcription path in `helpers/transcribe.py`. ElevenLabs is not called. Instead, the helper writes a reusable silent WAV and a minimal transcript JSON so the rest of the pipeline can continue.
+
+Accepted placeholder values are:
+
+```text
+placeholder
+dummy
+test
+```
+
+## Expected Outputs
+
+The script prints the workspace path at the end. The output directory is the workspace `edit/` folder.
+
+Expected files:
+
+- `edit/transcripts/<source>.json`
+- `edit/takes_packed.md`
+- `edit/verify/<source>_timeline.png`
+- `edit/edl.json`
+- `edit/clips_preview/seg_00_<source>.mp4`
+- `edit/base_preview.mp4`
+- `edit/preview.mp4`
+- `edit/placeholder_audio/placeholder.wav`
+
+The script also prints:
+
+- output directory
+- preview video path
+- generated files
+
+## Future Extension Ideas
+
+- Map `--brand` to a real TravelBuddy prompt pack.
+- Map `--style` to concrete grading and subtitle presets.
+- Add a real brand manifest file for TravelBuddy-specific defaults.
+- Add a second command mode for ingesting a folder of source videos.
+- Add a provider selector for future transcription backends.
+- Add an export mode that copies the preview into a named shareable folder.
+
+## Notes
+
+- The wrapper does not change the core render engine.
+- It uses the same helper scripts that are already verified in this repo.
+- The workflow still depends on `ffmpeg` and `ffprobe` being available on `PATH`.

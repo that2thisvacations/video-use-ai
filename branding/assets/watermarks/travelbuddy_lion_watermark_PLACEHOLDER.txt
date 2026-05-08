@@ -1,0 +1,11 @@
+Placeholder only.
+
+Replace this file with the final TravelBuddy watermark PNG:
+
+branding/assets/watermarks/travelbuddy_lion_watermark.png
+
+Requirements:
+
+- transparent PNG
+- tight bounding box
+- suitable for corner watermark use

@@ -1,0 +1,11 @@
+Placeholder only.
+
+Replace this file with the final TravelBuddy end card PNG:
+
+branding/assets/endcards/travelbuddy_luxury_endcard.png
+
+Requirements:
+
+- transparent PNG if used as an overlay
+- readable at export size
+- designed for closing premium or luxury TravelBuddy edits

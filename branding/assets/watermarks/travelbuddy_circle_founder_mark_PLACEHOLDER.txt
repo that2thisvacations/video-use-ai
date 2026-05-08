@@ -1,0 +1,11 @@
+Placeholder only.
+
+Replace this file with the final TravelBuddy founder mark PNG:
+
+branding/assets/watermarks/travelbuddy_circle_founder_mark.png
+
+Requirements:
+
+- transparent PNG
+- circular or avatar-style presentation
+- tight crop with clear edges

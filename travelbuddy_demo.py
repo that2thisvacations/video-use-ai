@@ -213,6 +213,16 @@ def resolve_caption_style(name: str) -> CaptionStyle:
     return get_caption_style(name)
 
 
+def resolve_social_ready_options(args: argparse.Namespace) -> argparse.Namespace:
+    args.brand = args.brand or DEFAULT_BRAND
+    args.style = args.style or DEFAULT_STYLE
+    args.export_preset = args.export_preset or DEFAULT_EXPORT_PRESET
+    args.caption_style = args.caption_style or DEFAULT_CAPTION_STYLE
+    args.content_type = args.content_type or DEFAULT_CONTENT_TYPE
+    args.tts_provider = args.tts_provider or "placeholder"
+    return args
+
+
 def preset_dimensions(preset: ExportPreset) -> tuple[int, int]:
     width_str, height_str = preset.resolution.lower().split("x", 1)
     return int(width_str), int(height_str)
@@ -413,16 +423,17 @@ def build_caption_overlay_assets(
     transcript: dict,
     style: CaptionStyle,
     preset: ExportPreset,
-    tmpdir: Path,
+    asset_dir: Path,
 ) -> list[tuple[float, float, Path]]:
     cues = build_caption_cues(transcript)
     if not cues:
         raise ValueError("no usable caption cues")
 
     width, height = parse_resolution(preset.resolution)
+    asset_dir.mkdir(parents=True, exist_ok=True)
     overlays: list[tuple[float, float, Path]] = []
     for idx, (start, end, text) in enumerate(cues):
-        overlay_path = tmpdir / f"caption_{idx:02d}.png"
+        overlay_path = asset_dir / f"caption_{idx:02d}.png"
         render_caption_overlay(text, width, height, style, preset, overlay_path)
         overlays.append((start, end, overlay_path))
     return overlays
@@ -807,84 +818,135 @@ def build_captioned_vertical_export(
         shutil.copy2(vertical_path, out_path)
         return True
 
-    with tempfile.TemporaryDirectory(prefix="travelbuddy_caption_") as tmp:
-        tmpdir = Path(tmp)
-        try:
-            overlays = build_caption_overlay_assets(transcript, caption_style, preset, tmpdir)
-        except ValueError:
-            print("  warning: caption cues unavailable; copying vertical export without captions", flush=True)
-            shutil.copy2(vertical_path, out_path)
-            return True
+    asset_dir = out_path.parent / "caption_overlays" / preset.name / caption_style.name
+    try:
+        overlays = build_caption_overlay_assets(transcript, caption_style, preset, asset_dir)
+    except ValueError:
+        print("  warning: caption cues unavailable; copying vertical export without captions", flush=True)
+        shutil.copy2(vertical_path, out_path)
+        return True
 
-        has_audio = has_audio_stream(vertical_path)
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(vertical_path),
-        ]
-        for _, _, overlay_path in overlays:
-            cmd.extend(["-i", str(overlay_path)])
+    has_audio = has_audio_stream(vertical_path)
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(vertical_path),
+    ]
+    for _, _, overlay_path in overlays:
+        cmd.extend(["-i", str(overlay_path)])
 
-        filter_parts: list[str] = []
-        prev_label = "[0:v]"
-        for idx, (start, end, _) in enumerate(overlays, start=1):
-            out_label = f"[v{idx}]"
-            filter_parts.append(
-                f"{prev_label}[{idx}:v]overlay=0:0:enable='between(t,{start:.3f},{end:.3f})'{out_label}"
-            )
-            prev_label = out_label
-
-        cmd.extend(["-filter_complex", ";".join(filter_parts)])
-        cmd.extend(["-map", prev_label])
-        if has_audio:
-            cmd.extend(["-map", "0:a", "-c:a", "copy"])
-        cmd.extend(
-            [
-                "-c:v",
-                "libx264",
-                "-preset",
-                "fast",
-                "-crf",
-                "18",
-                "-pix_fmt",
-                "yuv420p",
-                "-movflags",
-                "+faststart",
-                str(out_path),
-            ]
+    filter_parts: list[str] = []
+    prev_label = "[0:v]"
+    for idx, (start, end, _) in enumerate(overlays, start=1):
+        out_label = f"[v{idx}]"
+        filter_parts.append(
+            f"{prev_label}[{idx}:v]overlay=0:0:enable='between(t,{start:.3f},{end:.3f})'{out_label}"
         )
-        run(cmd)
+        prev_label = out_label
+
+    cmd.extend(["-filter_complex", ";".join(filter_parts)])
+    cmd.extend(["-map", prev_label])
+    if has_audio:
+        cmd.extend(["-map", "0:a", "-c:a", "copy"])
+    cmd.extend(
+        [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            str(out_path),
+        ]
+    )
+    run(cmd)
     return True
+
+
+def choose_final_social_output(
+    edit_dir: Path,
+    captioned_path: Path | None,
+    branded_916_path: Path | None,
+    branded_path: Path | None,
+) -> Path | None:
+    final_path = edit_dir / "final_social.mp4"
+    source_path: Path | None = None
+
+    if captioned_path is not None and captioned_path.exists():
+        source_path = captioned_path
+    elif branded_916_path is not None and branded_916_path.exists():
+        source_path = branded_916_path
+    elif branded_path is not None and branded_path.exists():
+        source_path = branded_path
+
+    if source_path is None:
+        print("  warning: social-ready final export could not be resolved", flush=True)
+        return None
+
+    shutil.copy2(source_path, final_path)
+    print(f"Final social export path: {final_path}", flush=True)
+    if source_path != captioned_path:
+        print(f"  note: final social export fell back to {source_path.name}", flush=True)
+    return final_path
+
+
+def print_social_ready_banner(final_path: Path, preset: ExportPreset, caption_style: CaptionStyle, tts_provider: str) -> None:
+    print()
+    print("==================================================", flush=True)
+    print("TRAVELBUDDY FINAL SOCIAL EXPORT READY", flush=True)
+    print("==================================================", flush=True)
+    print("Output:", flush=True)
+    print(f"edit/{final_path.name}", flush=True)
+    print("", flush=True)
+    print("Preset:", flush=True)
+    print(preset.name, flush=True)
+    print("", flush=True)
+    print("Caption Style:", flush=True)
+    print(caption_style.name, flush=True)
+    print("", flush=True)
+    print("TTS Provider:", flush=True)
+    print(tts_provider, flush=True)
+    print("", flush=True)
+    print("==================================================", flush=True)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run the TravelBuddy placeholder demo workflow")
+    ap.add_argument(
+        "--social-ready",
+        action="store_true",
+        help="Enable the TravelBuddy final social export preset",
+    )
     ap.add_argument("--input", type=Path, default=None, help="Optional input video path")
-    ap.add_argument("--brand", type=str, default=DEFAULT_BRAND, help="Brand label placeholder")
-    ap.add_argument("--style", type=str, default=DEFAULT_STYLE, help="Render style placeholder")
+    ap.add_argument("--brand", type=str, default=None, help="Brand label placeholder")
+    ap.add_argument("--style", type=str, default=None, help="Render style placeholder")
     ap.add_argument(
         "--export-preset",
         type=str,
-        default=DEFAULT_EXPORT_PRESET,
+        default=None,
         help="Export preset metadata name (default: cinematic_916)",
     )
     ap.add_argument(
         "--caption-style",
         type=str,
-        default=DEFAULT_CAPTION_STYLE,
+        default=None,
         help="Caption style metadata name (default: cinematic_gold)",
     )
     ap.add_argument(
         "--content-type",
         type=str,
-        default=DEFAULT_CONTENT_TYPE,
+        default=None,
         help="Content type metadata name (default: mentor_pitch)",
     )
     ap.add_argument(
         "--tts-provider",
         type=str,
-        default="placeholder",
+        default=None,
         choices=["placeholder", "piper"],
         help="TTS provider selection (default: placeholder)",
     )
@@ -919,6 +981,16 @@ def main() -> None:
         help="TravelBuddy watermark margin in pixels",
     )
     args = ap.parse_args()
+
+    if args.social_ready:
+        args = resolve_social_ready_options(args)
+    else:
+        args.brand = args.brand or DEFAULT_BRAND
+        args.style = args.style or DEFAULT_STYLE
+        args.export_preset = args.export_preset or DEFAULT_EXPORT_PRESET
+        args.caption_style = args.caption_style or DEFAULT_CAPTION_STYLE
+        args.content_type = args.content_type or DEFAULT_CONTENT_TYPE
+        args.tts_provider = args.tts_provider or "placeholder"
 
     require_tools(["ffmpeg", "ffprobe"])
     hooks = resolve_branding_hooks(args.brand, args.style)
@@ -1089,6 +1161,20 @@ def main() -> None:
                     )
                     if captioned_generated:
                         print(f"Captioned 9:16 preview path: {captioned_916_path}", flush=True)
+                    if args.social_ready:
+                        final_social_path = choose_final_social_output(
+                            edit_dir,
+                            captioned_916_path if captioned_generated else None,
+                            branded_916_path,
+                            branded_path,
+                        )
+                        if final_social_path is not None:
+                            print_social_ready_banner(
+                                final_social_path,
+                                export_preset,
+                                caption_style,
+                                args.tts_provider,
+                            )
         else:
             print("Branding hooks were present but no branded export was generated", flush=True)
     else:
@@ -1101,6 +1187,10 @@ def main() -> None:
     print(f"Preview video path: {preview_path}")
     if branded_generated:
         print(f"Branded preview video path: {branded_path}")
+    if args.social_ready:
+        final_social_path = edit_dir / "final_social.mp4"
+        if final_social_path.exists():
+            print(f"Final social video path: {final_social_path}")
     print(f"Branding mode: {'active' if hooks.active else 'inactive'}")
     print("Generated files:")
     for path in generated_files:

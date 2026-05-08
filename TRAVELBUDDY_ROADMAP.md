@@ -187,11 +187,13 @@ Scope:
 - optional preset loader
 - folder bootstrap helper
 - default prompt injection
+- convenience social-ready mode that maps to the existing TravelBuddy preset stack
 
 Deliverable:
 
 - a single entrypoint for common TravelBuddy workflows
 - easier onboarding for non-expert users
+- a final social export alias such as `edit/final_social.mp4`
 
 ### Phase A: Social Media Engine Metadata
 
@@ -210,6 +212,10 @@ Deliverable:
 - a stable additive layer for future caption/export/script automation
 - no change to the core ffmpeg render pipeline
 - a clean handoff point for future queue or batch automation
+
+The simplified social-ready wrapper should stay above this layer. It can
+select the current best preset set, generate `preview_branded_916_captioned.mp4`,
+and copy it to `final_social.mp4` without changing how presets are represented.
 
 ### Phase 5: Deployment Path
 

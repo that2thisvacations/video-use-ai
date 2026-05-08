@@ -41,6 +41,20 @@ cd ~/Documents/video-use-ai
 .venv/bin/python3.11 travelbuddy_demo.py --input /path/to/video.mp4 --brand TRAVELBUDDY --style cinematic
 ```
 
+Social-ready shortcut:
+
+```bash
+cd ~/Documents/video-use-ai
+.venv/bin/python3.11 travelbuddy_demo.py --social-ready --tts-provider placeholder
+```
+
+With Piper:
+
+```bash
+cd ~/Documents/video-use-ai
+.venv/bin/python3.11 travelbuddy_demo.py --social-ready --tts-provider piper --piper-voice en_US-lessac-low --piper-data-dir ./models/piper
+```
+
 Phase A metadata example:
 
 ```bash
@@ -125,6 +139,7 @@ Expected files:
 - `edit/preview_branded.mp4` when TravelBuddy branding is active and assets are present
 - `edit/preview_branded_916.mp4` when `--export-preset cinematic_916` is selected
 - `edit/preview_branded_916_captioned.mp4` when `--export-preset cinematic_916` and `--caption-style cinematic_gold` are selected
+- `edit/final_social.mp4` when `--social-ready` is selected
 - `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
 
 The script also prints:
@@ -132,6 +147,8 @@ The script also prints:
 - output directory
 - preview video path
 - generated files
+
+`final_social.mp4` is the convenience alias for the polished social-ready result. It copies the best available 9:16 social export, normally `preview_branded_916_captioned.mp4`.
 
 TravelBuddy branding can be tuned with:
 

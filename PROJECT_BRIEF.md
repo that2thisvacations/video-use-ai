@@ -144,6 +144,7 @@ Verified caption rendering behavior:
 - `cinematic_gold` now produces `edit/preview_branded_916_captioned.mp4`
 - captions are rendered as lightweight Python-generated overlay plates and composited with ffmpeg
 - if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
+- `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
 
 ## Placeholder Audio Mode
 
@@ -178,3 +179,4 @@ Future content pipeline notes:
 - script generation remains stubbed until the AI content layer is intentionally added
 - the first real preset behavior should stay additive and isolated to `cinematic_916`
 - the first caption behavior should stay additive and isolated to `cinematic_gold`
+- the social-ready wrapper should remain additive and should not replace the manual preset path

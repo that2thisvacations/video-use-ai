@@ -1,0 +1,109 @@
+# Piper Local Validation
+
+This document records a standalone, non-destructive Piper validation on macOS.
+It does not wire Piper into the repo runtime.
+
+## Environment Detected
+
+- Python: `Python 3.9.6`
+- Architecture: `x86_64`
+- ffmpeg: available at `/usr/local/bin/ffmpeg`
+- Repo virtualenv: `.venv` exists and uses `Python 3.11.15`
+
+## Safest Mac Install Method
+
+The lowest-risk validation path is a throwaway virtual environment outside the
+repo:
+
+```bash
+python3 -m venv /tmp/piper-check
+source /tmp/piper-check/bin/activate
+pip install -U pip setuptools wheel
+pip install piper-tts
+```
+
+This keeps the repo runtime untouched and makes rollback trivial.
+
+## Recommended Lightweight English Voice Model
+
+Use the lightweight U.S. English Lessac model:
+
+```text
+en_US-lessac-low
+```
+
+The model is hosted by the Piper voices repository and is a compact English
+voice suitable for first-pass validation.
+
+## Expected Model Storage Path
+
+Keep voice assets outside the repo. A simple local path is:
+
+```text
+/tmp/piper-check/piper_data/
+```
+
+For a persistent user-level path, use something like:
+
+```text
+~/Library/Application Support/video-use-ai/piper/
+```
+
+The provider adapter should read the model path from configuration later.
+
+## Standalone CLI Test Commands
+
+The exact validation flow that succeeded was:
+
+```bash
+workdir=$(mktemp -d)
+python3 -m venv "$workdir/venv"
+"$workdir/venv/bin/pip" install -U pip setuptools wheel
+"$workdir/venv/bin/pip" install piper-tts
+
+voice_dir="$workdir/piper_data"
+out="$workdir/piper_test.wav"
+mkdir -p "$voice_dir"
+
+"$workdir/venv/bin/python" -m piper.download_voices en_US-lessac-low --data-dir "$voice_dir"
+"$workdir/venv/bin/python" -m piper -m en_US-lessac-low -f "$out" --data-dir "$voice_dir" -- 'Hello from TravelBuddy.'
+```
+
+The first attempt using stdin failed with:
+
+```text
+wave.Error: # channels not specified
+```
+
+The documented `-- 'text'` form worked.
+
+## Expected WAV Output
+
+Successful validation produced:
+
+```text
+/var/folders/yq/kp4zp89s37s0f12dfb_y6fv80000gn/T/tmp.imTRL0O2vv/piper_test.wav
+```
+
+Observed output:
+
+```text
+RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz
+```
+
+## Rollback and Removal
+
+Rollback is straightforward:
+
+1. delete the throwaway temp venv and temp working directory
+2. remove any downloaded voice models if they were stored in a persistent
+   folder
+3. leave the repo runtime unchanged
+4. continue using `placeholder` or `elevenlabs` in the existing provider
+   routing until Piper is explicitly integrated later
+
+## Validation Result
+
+Standalone Piper installation succeeded in a throwaway temp venv and generated
+a short WAV file without modifying the repo runtime.
+

@@ -108,9 +108,24 @@ The transcription helper accepts:
 
 `placeholder` is the default. `piper` is optional and only works when Piper is installed in the current Python environment.
 
+Verified Piper install and model download commands:
+
+```bash
+cd ~/Documents/video-use-ai
+.venv/bin/python3.11 -m pip install piper-tts
+.venv/bin/python3.11 -m piper.download_voices en_US-lessac-low --data-dir ./models/piper
+```
+
+Model location convention:
+
+```text
+./models/piper
+```
+
 The local-first architecture keeps provider selection inside `helpers/transcribe.py` and provider behavior inside `helpers/tts_providers/`, so future local engines can be added without changing the transcript contract.
 
 The code looks for provider assets in the repo and in the edit workspace. Do not commit generated audio or temporary model downloads.
+The workflow assumes `ffmpeg` and `ffprobe` are available on `PATH`; the system `ffprobe` binary is fine.
 
 ## Placeholder Audio Mode
 
@@ -142,3 +157,4 @@ The safest first step is documentation and prompt-level branding. That gives the
 
 The repo now assumes local-first transcription. Placeholder is the default, Piper is the optional real local provider, and the rest of the pipeline continues to work from the same transcript JSON contract.
 
+Generated models, audio, and video should not be committed.

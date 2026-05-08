@@ -25,6 +25,15 @@ cd ~/Documents/video-use-ai
 .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider piper --piper-voice en_US-lessac-low --piper-data-dir ~/Library/Application\ Support/video-use-ai/piper
 ```
 
+Verified Piper path:
+
+```bash
+cd ~/Documents/video-use-ai
+.venv/bin/python3.11 -m pip install piper-tts
+.venv/bin/python3.11 -m piper.download_voices en_US-lessac-low --data-dir ./models/piper
+.venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider piper --piper-voice en_US-lessac-low --piper-data-dir ./models/piper
+```
+
 Optional input video:
 
 ```bash
@@ -85,6 +94,7 @@ Expected files:
 - `edit/base_preview.mp4`
 - `edit/preview.mp4`
 - `edit/placeholder_audio/placeholder.wav`
+- `edit/piper_audio/<source>.wav` when Piper is selected and installed
 - `edit/preview_branded.mp4` when TravelBuddy branding is active and assets are present
 
 The script also prints:
@@ -113,4 +123,5 @@ TravelBuddy branding can be tuned with:
 - The wrapper does not change the core render engine.
 - It uses the same helper scripts that are already verified in this repo.
 - The workflow still depends on `ffmpeg` and `ffprobe` being available on `PATH`.
-
+- The system `ffprobe` binary is fine; it does not need to live inside the repo virtualenv.
+- Generated models, audio, and video should not be committed.

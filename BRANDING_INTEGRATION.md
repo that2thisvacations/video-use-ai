@@ -9,9 +9,10 @@ The first integration layer should live in the demo wrapper, then fan out into r
 Suggested progression:
 
 1. Demo wrapper resolves brand pack metadata.
-2. Wrapper selects placeholder watermark, end card, and subtitle style hooks.
-3. Render pipeline consumes those hooks when the brand implementation is ready.
-4. Core helper behavior stays unchanged until brand assets are stable.
+2. Wrapper selects watermark, end card, and subtitle style hooks.
+3. Wrapper generates a branded export alongside the base preview.
+4. Render pipeline consumes those hooks when the brand implementation is ready.
+5. Core helper behavior stays unchanged until brand assets are stable.
 
 ## Overlay Architecture
 
@@ -31,6 +32,17 @@ Overlay order should remain explicit and predictable:
 3. subtitles
 4. final preview/export
 
+## Required Asset Paths
+
+Canonical assets expected by the demo wrapper:
+
+- `branding/assets/watermarks/travelbuddy_lion_watermark.png`
+- `branding/assets/endcards/travelbuddy_luxury_endcard.png`
+
+Optional future hook:
+
+- `branding/assets/watermarks/travelbuddy_circle_founder_mark.png`
+
 ## Render Hook Locations
 
 Future hook points should start in these areas:
@@ -41,6 +53,10 @@ Future hook points should start in these areas:
 - `poster.html` for branding previews
 - `branding/` for asset and pack metadata
 
+Branded output path in the demo workflow:
+
+- `edit/preview_branded.mp4`
+
 ## Future Automation Ideas
 
 - load a TravelBuddy brand pack from `branding/`
@@ -48,6 +64,29 @@ Future hook points should start in these areas:
 - map `--style` to a grade preset and subtitle template
 - add a brand manifest file for reusable pack definitions
 - add a folder bootstrap command for new TravelBuddy projects
+- add a branded export command that shares the same base render but swaps in a finished brand layer
+
+## Command Example
+
+```bash
+ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic
+```
+
+If the canonical assets are present, the wrapper should:
+
+- keep `edit/preview.mp4` unchanged
+- generate `edit/preview_branded.mp4`
+- overlay the lion watermark in the lower-right corner
+- append the luxury end card as a 2-second outro
+
+## Fallback Behavior
+
+If the branding assets are missing:
+
+- skip branded export safely
+- keep the base preview flow intact
+- print a clear message naming the missing asset
+- do not fail the demo workflow
 
 ## Safest Next Implementation Step
 

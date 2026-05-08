@@ -73,6 +73,28 @@ def probe_duration(video_path: Path) -> float:
     return float(result.stdout.strip())
 
 
+def probe_dimensions(video_path: Path) -> tuple[int, int]:
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0:s=x",
+            str(video_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    width_str, height_str = result.stdout.strip().split("x", 1)
+    return int(width_str), int(height_str)
+
+
 def generate_demo_video(video_path: Path) -> None:
     run(
         [
@@ -117,8 +139,8 @@ def resolve_branding_hooks(brand: str, style: str) -> BrandingHooks:
             subtitle_style="default",
         )
 
-    watermark_path = BRANDING_ASSETS / "watermarks" / "travelbuddy_watermark.png"
-    endcard_path = BRANDING_ASSETS / "endcards" / "travelbuddy_endcard.png"
+    watermark_path = BRANDING_ASSETS / "watermarks" / "travelbuddy_lion_watermark.png"
+    endcard_path = BRANDING_ASSETS / "endcards" / "travelbuddy_luxury_endcard.png"
     subtitle_style_map = {
         "cinematic": "travelbuddy_cinematic",
         "luxury": "travelbuddy_luxury",
@@ -171,6 +193,152 @@ def write_edl(edit_dir: Path, source_name: str, source_path: Path, duration: flo
 def gather_generated_files(workspace: Path) -> list[Path]:
     files = [p for p in workspace.rglob("*") if p.is_file()]
     return sorted(files)
+
+
+def asset_exists(path: Path | None) -> bool:
+    return path is not None and path.exists()
+
+
+def build_branded_preview(
+    preview_path: Path,
+    branded_path: Path,
+    hooks: BrandingHooks,
+) -> bool:
+    if not hooks.active:
+        print("Branding disabled; skipping branded preview", flush=True)
+        return False
+
+    if not asset_exists(hooks.watermark_path):
+        print(f"Branding asset missing, skipping watermark: {hooks.watermark_path}", flush=True)
+        return False
+
+    if not asset_exists(hooks.endcard_path):
+        print(f"Branding asset missing, skipping end card: {hooks.endcard_path}", flush=True)
+        return False
+
+    with tempfile.TemporaryDirectory(prefix="travelbuddy_brand_") as tmp:
+        tmpdir = Path(tmp)
+        watermarked = tmpdir / "preview_watermarked.mp4"
+        endcard_clip = tmpdir / "endcard.mp4"
+        preview_width, preview_height = probe_dimensions(preview_path)
+
+        print("Applying TravelBuddy watermark and end card...", flush=True)
+        run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(preview_path),
+                "-i",
+                str(hooks.watermark_path),
+                "-filter_complex",
+                (
+                    "[1:v]scale=iw*0.22:-1[wm];"
+                    "[0:v][wm]overlay=W-w-32:H-h-32:format=auto[outv]"
+                ),
+                "-map",
+                "[outv]",
+                "-map",
+                "0:a",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "copy",
+                "-movflags",
+                "+faststart",
+                str(watermarked),
+            ]
+        )
+
+        run(
+            [
+                "ffmpeg",
+                "-y",
+                "-loop",
+                "1",
+                "-t",
+                "2",
+                "-i",
+                str(hooks.endcard_path),
+                "-f",
+                "lavfi",
+                "-t",
+                "2",
+                "-i",
+                "anullsrc=channel_layout=mono:sample_rate=48000",
+                "-filter_complex",
+                (
+                    f"[0:v]scale={preview_width}:{preview_height}:"
+                    "force_original_aspect_ratio=decrease,"
+                    f"pad={preview_width}:{preview_height}:(ow-iw)/2:(oh-ih)/2,"
+                    "setsar=1,format=yuv420p[v]"
+                ),
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-pix_fmt",
+                "yuv420p",
+                "-r",
+                "24",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-ar",
+                "48000",
+                "-shortest",
+                "-movflags",
+                "+faststart",
+                "-map",
+                "[v]",
+                "-map",
+                "1:a",
+                str(endcard_clip),
+            ]
+        )
+
+        run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(watermarked),
+                "-i",
+                str(endcard_clip),
+                "-filter_complex",
+                "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]",
+                "-map",
+                "[v]",
+                "-map",
+                "[a]",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-movflags",
+                "+faststart",
+                str(branded_path),
+            ]
+        )
+
+    return True
 
 
 def main() -> None:
@@ -280,11 +448,24 @@ def main() -> None:
         cwd=REPO_ROOT,
     )
 
+    branded_path = edit_dir / "preview_branded.mp4"
+    branded_generated = False
+    if hooks.active:
+        branded_generated = build_branded_preview(preview_path, branded_path, hooks)
+        if branded_generated:
+            print(f"Branded preview path: {branded_path}", flush=True)
+        else:
+            print("Branding hooks were present but no branded export was generated", flush=True)
+    else:
+        print("Branding mode inactive; skipping branded export", flush=True)
+
     generated_files = gather_generated_files(workspace)
     print()
     print(f"Workspace: {workspace}")
     print(f"Output directory: {edit_dir}")
     print(f"Preview video path: {preview_path}")
+    if branded_generated:
+        print(f"Branded preview video path: {branded_path}")
     print(f"Branding mode: {'active' if hooks.active else 'inactive'}")
     print("Generated files:")
     for path in generated_files:

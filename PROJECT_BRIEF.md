@@ -17,7 +17,7 @@ It is structured as a reusable skill/toolkit rather than a hosted web app.
 ## Main Tech Stack
 
 - Python 3.10+
-- ffmpeg and ffprobe for audio/video extraction, rendering, grading, subtitles, and verification
+- ffmpeg and ffprobe for audio/video extraction, rendering, grading, overlay composition, and verification
 - Python dependencies from `pyproject.toml`: `librosa`, `matplotlib`, `pillow`, `numpy`
 - Optional animation tooling:
   - HyperFrames
@@ -139,17 +139,17 @@ Verified vertical export behavior:
 - the vertical export is 1080x1920 and is built from the branded preview with a safe center-crop
 - the stable 16:9 `preview.mp4` and `preview_branded.mp4` outputs remain unchanged
 
+Verified caption rendering behavior:
+
+- `cinematic_gold` now produces `edit/preview_branded_916_captioned.mp4`
+- captions are rendered as lightweight Python-generated overlay plates and composited with ffmpeg
+- if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
+
 ## Placeholder Audio Mode
 
 For local setup or demos without a real provider, transcription falls back to placeholder mode when `--tts-provider placeholder` is selected.
 
-In placeholder mode, the helper does not synthesize speech. It writes a reusable local silent WAV under `<videos_dir>/edit/placeholder_audio/` and creates a minimal placeholder transcript JSON so downstream packing and editing steps can continue.
-
-The console message is:
-
-```text
-Using placeholder audio mode.
-```
+In placeholder mode, the helper does not synthesize speech. It writes a reusable local silent WAV under `<videos_dir>/edit/placeholder_audio/` and creates a minimal placeholder transcript JSON so downstream packing and editing steps can continue. The helper logs the saved placeholder transcript path and placeholder audio path.
 
 ## Best Next Customization Path for TravelBuddy Branding
 
@@ -177,3 +177,4 @@ Future content pipeline notes:
 - `travelbuddy_demo.py` writes the selected preset/style/content metadata into `edit/edl.json`
 - script generation remains stubbed until the AI content layer is intentionally added
 - the first real preset behavior should stay additive and isolated to `cinematic_916`
+- the first caption behavior should stay additive and isolated to `cinematic_gold`

@@ -126,6 +126,18 @@ def probe_dimensions(video_path: Path) -> tuple[int, int]:
     return int(width_str), int(height_str)
 
 
+def ass_timestamp(seconds: float) -> str:
+    total_cs = int(round(max(0.0, seconds) * 100))
+    hours, rem = divmod(total_cs, 360000)
+    minutes, rem = divmod(rem, 6000)
+    secs, centis = divmod(rem, 100)
+    return f"{hours:d}:{minutes:02d}:{secs:02d}.{centis:02d}"
+
+
+def escape_ass_text(text: str) -> str:
+    return text.replace("\\", r"\\").replace("{", r"\{").replace("}", r"\}")
+
+
 def generate_demo_video(video_path: Path) -> None:
     run(
         [
@@ -212,6 +224,255 @@ def log_preset_metadata(preset: ExportPreset) -> None:
     print(f"  watermark safe zone: {preset.watermark_safe_zone}", flush=True)
     print(f"  end card safe zone: {preset.end_card_safe_zone}", flush=True)
     print(f"  output suffix: {preset.output_suffix}", flush=True)
+
+
+def ass_color_from_hex(hex_color: str) -> str:
+    value = hex_color.strip().lstrip("#")
+    if len(value) != 6:
+        return "&H00FFFFFF"
+    r = value[0:2]
+    g = value[2:4]
+    b = value[4:6]
+    return f"&H00{b.upper()}{g.upper()}{r.upper()}"
+
+
+def build_caption_cues(transcript: dict) -> list[tuple[float, float, str]]:
+    words = [
+        w
+        for w in transcript.get("words", [])
+        if w.get("type") == "word" and (w.get("text") or "").strip()
+    ]
+    if not words:
+        text = (transcript.get("text") or "").strip()
+        if not text:
+            return []
+        return [(0.0, 1.0, text.upper())]
+
+    cues: list[tuple[float, float, str]] = []
+    chunk: list[dict] = []
+    for word in words:
+        chunk.append(word)
+        text = (word.get("text") or "").strip()
+        ends_in_punct = bool(text) and text[-1] in ".,!?;:"
+        if len(chunk) >= 2 or ends_in_punct:
+            start = chunk[0].get("start")
+            end = chunk[-1].get("end")
+            if start is None:
+                start = cues[-1][1] if cues else 0.0
+            if end is None or end <= start:
+                end = float(start) + 0.45
+            cue_text = " ".join((w.get("text") or "").strip() for w in chunk).strip()
+            cue_text = cue_text.rstrip(",;:")
+            cues.append((float(start), float(end), cue_text.upper()))
+            chunk = []
+
+    if chunk:
+        start = chunk[0].get("start")
+        end = chunk[-1].get("end")
+        if start is None:
+            start = cues[-1][1] if cues else 0.0
+        if end is None or end <= start:
+            end = float(start) + 0.45
+        cue_text = " ".join((w.get("text") or "").strip() for w in chunk).strip()
+        cue_text = cue_text.rstrip(",;:")
+        cues.append((float(start), float(end), cue_text.upper()))
+
+    return cues
+
+
+def parse_resolution(resolution: str) -> tuple[int, int]:
+    width_str, height_str = resolution.lower().split("x", 1)
+    return int(width_str), int(height_str)
+
+
+def clamp(value: int, low: int, high: int) -> int:
+    return max(low, min(high, value))
+
+
+def resolve_font_path(font_name: str) -> Path:
+    fallback_candidates = [
+        Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
+        Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+        Path("/System/Library/Fonts/Supplemental/Helvetica.ttc"),
+        Path("/Library/Fonts/Arial Bold.ttf"),
+        Path("/Library/Fonts/Arial.ttf"),
+    ]
+    for candidate in fallback_candidates:
+        if candidate.exists():
+            return candidate
+
+    try:
+        from matplotlib import font_manager
+        from matplotlib.font_manager import FontProperties
+
+        return Path(font_manager.findfont(FontProperties(family="DejaVu Sans"), fallback_to_default=True))
+    except Exception:
+        return Path()
+
+
+def wrap_caption_lines(text: str, font, max_width: int, max_lines: int) -> list[str]:
+    words = [word for word in text.split() if word]
+    if not words:
+        return []
+
+    def measure(candidate: str) -> int:
+        bbox = font.getbbox(candidate)
+        return bbox[2] - bbox[0]
+
+    lines: list[str] = []
+    current = ""
+    for idx, word in enumerate(words):
+        trial = word if not current else f"{current} {word}"
+        if not current or measure(trial) <= max_width:
+            current = trial
+            continue
+
+        lines.append(current)
+        current = word
+        if len(lines) >= max_lines - 1:
+            remainder = " ".join([current] + words[idx + 1 :])
+            lines.append(remainder)
+            return lines[:max_lines]
+
+    if current:
+        lines.append(current)
+
+    if len(lines) > max_lines:
+        merged = [" ".join(lines[: max_lines - 1]), lines[max_lines - 1]]
+        return merged
+    return lines
+
+
+def render_caption_overlay(
+    text: str,
+    width: int,
+    height: int,
+    style: CaptionStyle,
+    preset: ExportPreset,
+    out_path: Path,
+) -> None:
+    from PIL import Image, ImageDraw, ImageFont
+
+    font_path = resolve_font_path(style.font_placeholder)
+    font_size = int(style.font_size)
+    font = ImageFont.truetype(str(font_path), font_size) if font_path.exists() else ImageFont.load_default()
+
+    safe_zone = preset.subtitle_safe_zone
+    position = style.subtitle_positioning
+    max_lines = int(position.get("max_lines", 2))
+    max_text_width = int(width * float(safe_zone.get("w", 0.84)))
+
+    lines = wrap_caption_lines(text.strip().upper(), font, max_text_width, max_lines)
+    if not lines:
+        raise ValueError("empty caption text")
+
+    image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    multiline = "\n".join(lines)
+    bbox = draw.multiline_textbbox((0, 0), multiline, font=font, spacing=8, stroke_width=4)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+
+    safe_top = int(height * float(safe_zone.get("y", 0.70)))
+    safe_h = int(height * float(safe_zone.get("h", 0.18)))
+    anchor_y = safe_top + int(safe_h * 0.34)
+    x = (width - text_w) // 2
+    y = clamp(anchor_y - (text_h // 2), safe_top, max(safe_top, safe_top + safe_h - text_h))
+
+    shadow_color = (0, 0, 0, 180)
+    gold_hex = style.emphasis_color.strip().lstrip("#")
+    if len(gold_hex) == 6:
+        fill = tuple(int(gold_hex[i : i + 2], 16) for i in (0, 2, 4)) + (255,)
+    else:
+        fill = (212, 175, 55, 255)
+
+    draw.multiline_text(
+        (x + 3, y + 3),
+        multiline,
+        font=font,
+        fill=shadow_color,
+        spacing=8,
+        align="center",
+        stroke_width=4,
+        stroke_fill=shadow_color,
+    )
+    draw.multiline_text(
+        (x, y),
+        multiline,
+        font=font,
+        fill=fill,
+        spacing=8,
+        align="center",
+        stroke_width=4,
+        stroke_fill=(0, 0, 0, 220),
+    )
+    image.save(out_path)
+
+
+def build_caption_overlay_assets(
+    transcript: dict,
+    style: CaptionStyle,
+    preset: ExportPreset,
+    tmpdir: Path,
+) -> list[tuple[float, float, Path]]:
+    cues = build_caption_cues(transcript)
+    if not cues:
+        raise ValueError("no usable caption cues")
+
+    width, height = parse_resolution(preset.resolution)
+    overlays: list[tuple[float, float, Path]] = []
+    for idx, (start, end, text) in enumerate(cues):
+        overlay_path = tmpdir / f"caption_{idx:02d}.png"
+        render_caption_overlay(text, width, height, style, preset, overlay_path)
+        overlays.append((start, end, overlay_path))
+    return overlays
+
+
+def build_ass_captions(transcript: dict, style: CaptionStyle, out_path: Path) -> Path:
+    cues = build_caption_cues(transcript)
+    if not cues:
+        raise ValueError("no usable caption cues")
+
+    position = style.subtitle_positioning
+    margin_v = int(position.get("margin_v", 120))
+    font_size = int(style.font_size)
+    font_name = style.font_placeholder or "Helvetica"
+    primary = ass_color_from_hex(style.emphasis_color)
+    outline = ass_color_from_hex("#000000")
+
+    header = "\n".join(
+        [
+            "[Script Info]",
+            "ScriptType: v4.00+",
+            "PlayResX: 1080",
+            "PlayResY: 1920",
+            "WrapStyle: 2",
+            "ScaledBorderAndShadow: yes",
+            "",
+            "[V4+ Styles]",
+            "Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding",
+            (
+                "Style: Default,"
+                f"{font_name},{font_size},{primary},{primary},{outline},&H00000000,"
+                "1,0,0,0,100,100,0,0,1,3,1,2,60,60,"
+                f"{margin_v},1"
+            ),
+            "",
+            "[Events]",
+            "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text",
+        ]
+    )
+    lines = [header]
+    for start, end, text in cues:
+        lines.append(
+            "Dialogue: 0,"
+            f"{ass_timestamp(start)},"
+            f"{ass_timestamp(end)},"
+            "Default,,0,0,0,,"
+            f"{escape_ass_text(text)}"
+        )
+    out_path.write_text("\n".join(lines) + "\n")
+    return out_path
 
 
 def build_content_metadata(
@@ -513,6 +774,90 @@ def build_vertical_export(
     return True
 
 
+def build_captioned_vertical_export(
+    vertical_path: Path,
+    transcript_path: Path | None,
+    out_path: Path,
+    caption_style: CaptionStyle,
+    preset: ExportPreset,
+) -> bool:
+    if preset.name != "cinematic_916" or caption_style.name != "cinematic_gold":
+        print(f"Caption rendering metadata only: preset={preset.name} style={caption_style.name}", flush=True)
+        return False
+
+    print("Building captioned vertical export...", flush=True)
+    print(f"  caption style selected: {caption_style.name}", flush=True)
+    print(f"  transcript source: {transcript_path if transcript_path is not None else 'missing'}", flush=True)
+    print(f"  caption output path: {out_path}", flush=True)
+    print(f"  subtitle safe-zone metadata: {caption_style.subtitle_positioning}", flush=True)
+    print("  caption rendering method: image overlays via Pillow", flush=True)
+    if transcript_path is None:
+        print("  warning: transcript JSON missing; copying vertical export without captions", flush=True)
+        shutil.copy2(vertical_path, out_path)
+        return True
+    if not transcript_path.exists():
+        print(f"  warning: transcript JSON missing; copying vertical export without captions ({transcript_path})", flush=True)
+        shutil.copy2(vertical_path, out_path)
+        return True
+
+    transcript = json.loads(transcript_path.read_text())
+    cues = build_caption_cues(transcript)
+    if not cues:
+        print("  warning: transcript timings incomplete; copying vertical export without captions", flush=True)
+        shutil.copy2(vertical_path, out_path)
+        return True
+
+    with tempfile.TemporaryDirectory(prefix="travelbuddy_caption_") as tmp:
+        tmpdir = Path(tmp)
+        try:
+            overlays = build_caption_overlay_assets(transcript, caption_style, preset, tmpdir)
+        except ValueError:
+            print("  warning: caption cues unavailable; copying vertical export without captions", flush=True)
+            shutil.copy2(vertical_path, out_path)
+            return True
+
+        has_audio = has_audio_stream(vertical_path)
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(vertical_path),
+        ]
+        for _, _, overlay_path in overlays:
+            cmd.extend(["-i", str(overlay_path)])
+
+        filter_parts: list[str] = []
+        prev_label = "[0:v]"
+        for idx, (start, end, _) in enumerate(overlays, start=1):
+            out_label = f"[v{idx}]"
+            filter_parts.append(
+                f"{prev_label}[{idx}:v]overlay=0:0:enable='between(t,{start:.3f},{end:.3f})'{out_label}"
+            )
+            prev_label = out_label
+
+        cmd.extend(["-filter_complex", ";".join(filter_parts)])
+        cmd.extend(["-map", prev_label])
+        if has_audio:
+            cmd.extend(["-map", "0:a", "-c:a", "copy"])
+        cmd.extend(
+            [
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                str(out_path),
+            ]
+        )
+        run(cmd)
+    return True
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run the TravelBuddy placeholder demo workflow")
     ap.add_argument("--input", type=Path, default=None, help="Optional input video path")
@@ -733,6 +1078,17 @@ def main() -> None:
                 vertical_generated = build_vertical_export(branded_path, branded_916_path, export_preset)
                 if vertical_generated:
                     print(f"Branded 9:16 preview path: {branded_916_path}", flush=True)
+                    captioned_916_path = edit_dir / "preview_branded_916_captioned.mp4"
+                    transcript_path = edit_dir / "transcripts" / f"{Path(source_name).stem}.json"
+                    captioned_generated = build_captioned_vertical_export(
+                        branded_916_path,
+                        transcript_path,
+                        captioned_916_path,
+                        caption_style,
+                        export_preset,
+                    )
+                    if captioned_generated:
+                        print(f"Captioned 9:16 preview path: {captioned_916_path}", flush=True)
         else:
             print("Branding hooks were present but no branded export was generated", flush=True)
     else:

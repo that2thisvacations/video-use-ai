@@ -63,8 +63,10 @@ This produces:
 - `edit/preview.mp4`
 - `edit/preview_branded.mp4`
 - `edit/preview_branded_916.mp4`
+- `edit/preview_branded_916_captioned.mp4` when `--caption-style cinematic_gold` is selected
 
 `preview_branded_916.mp4` is a real 1080x1920 center-cropped export built from the branded preview. The stable 16:9 outputs remain unchanged.
+`preview_branded_916_captioned.mp4` adds the first visible caption rendering pass on top of the vertical export. The current implementation renders caption plates in Python and composites them with ffmpeg overlays, so it stays available even when subtitle video filters are missing from the local ffmpeg build.
 
 Watermark tuning example:
 
@@ -122,6 +124,7 @@ Expected files:
 - `edit/piper_audio/<source>.wav` when Piper is selected and installed
 - `edit/preview_branded.mp4` when TravelBuddy branding is active and assets are present
 - `edit/preview_branded_916.mp4` when `--export-preset cinematic_916` is selected
+- `edit/preview_branded_916_captioned.mp4` when `--export-preset cinematic_916` and `--caption-style cinematic_gold` are selected
 - `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
 
 The script also prints:
@@ -144,6 +147,7 @@ TravelBuddy branding can be tuned with:
 - Add a second command mode for ingesting a folder of source videos.
 - Add a provider selector for additional local transcription backends.
 - Add content-type routing for future AI script generation and caption presets.
+- Expand caption styles into animated subtitle treatments after the static overlay pass is validated.
 - Add an export mode that copies the preview into a named shareable folder.
 
 ## Notes

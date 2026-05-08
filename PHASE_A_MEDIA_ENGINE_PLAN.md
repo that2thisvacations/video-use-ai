@@ -89,3 +89,16 @@ The first real preset behavior now exists for `cinematic_916`:
 - the vertical output is 1080x1920 and uses a center-crop strategy
 
 Other presets remain metadata-only until they are intentionally implemented.
+
+## Phase C Verification Note
+
+The first visible caption render now exists for the `cinematic_gold` style on
+top of `cinematic_916`:
+
+- the captioned output is `preview_branded_916_captioned.mp4`
+- the caption layer uses the transcript JSON already written by the provider
+- the implementation is a static Python overlay pass composited with ffmpeg, not an animation engine
+- if transcript data is missing, the workflow falls back without failing the render
+
+The future subtitle animation roadmap should add motion only after the static
+caption layer is visually approved on real clips.

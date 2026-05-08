@@ -1,12 +1,7 @@
-"""Provider adapters used by helpers/transcribe.py.
-
-The package stays intentionally small so the current placeholder workflow
-remains the default while future local providers can be added one file at a
-time.
-"""
+"""Provider adapters used by helpers/transcribe.py."""
 
 from __future__ import annotations
 
-PROVIDER_NAMES = ("placeholder", "elevenlabs", "piper")
-ACTIVE_PROVIDER_NAMES = ("placeholder", "elevenlabs", "piper")
-FUTURE_PROVIDER_NAMES = ()
+PROVIDER_NAMES = ("placeholder", "piper")
+ACTIVE_PROVIDER_NAMES = ("placeholder", "piper")
+

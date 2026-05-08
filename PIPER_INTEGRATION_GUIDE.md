@@ -77,8 +77,7 @@ Piper should follow the same boundary the current providers use:
 Rollback should be simple:
 
 1. leave `placeholder` as the default provider
-2. keep `elevenlabs` behavior unchanged
-3. keep `helpers/tts_providers/piper.py` isolated as the optional adapter
-4. if Piper causes issues, stop routing to it and fall back to placeholder mode
-5. remove only the Piper adapter code and any provider-specific configuration,
+2. keep `helpers/tts_providers/piper.py` isolated as the optional adapter
+3. if Piper causes issues, stop routing to it and fall back to placeholder mode
+4. remove only the Piper adapter code and any provider-specific configuration,
    not the transcript contract or render helpers

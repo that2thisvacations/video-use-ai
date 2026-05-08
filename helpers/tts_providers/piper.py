@@ -3,7 +3,6 @@
 Expected input:
 - video: source clip Path
 - edit_dir: output workspace Path
-- api_key: retained for interface compatibility, unused by Piper
 - language: optional language hint, currently unused
 - num_speakers: optional diarization hint, currently unused
 - piper_voice: Piper model name such as ``en_US-lessac-low``
@@ -96,7 +95,6 @@ def synthesize_wav(voice: str, data_dir: Path, out_wav: Path, text: str) -> None
 def transcribe(
     video: Path,
     edit_dir: Path,
-    api_key: str,
     language: str | None = None,
     num_speakers: int | None = None,
     piper_voice: str | None = None,
@@ -143,3 +141,4 @@ def transcribe(
         print(f"    audio: {payload['placeholder_audio']}")
 
     return out_path
+

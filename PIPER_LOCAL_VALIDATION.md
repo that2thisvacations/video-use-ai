@@ -89,7 +89,7 @@ For the repo runtime, the missing-Piper path should now fail gracefully with a
 clear install message instead of changing the default provider:
 
 ```bash
-ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 helpers/transcribe.py /tmp/test_clip.mp4 --tts-provider piper
+.venv/bin/python3.11 helpers/transcribe.py /tmp/test_clip.mp4 --tts-provider piper
 ```
 
 ## Expected WAV Output
@@ -114,8 +114,8 @@ Rollback is straightforward:
 2. remove any downloaded voice models if they were stored in a persistent
    folder
 3. leave the repo runtime unchanged
-4. continue using `placeholder` or `elevenlabs` in the existing provider
-   routing if Piper is removed or unavailable
+4. continue using `placeholder` in the existing provider routing if Piper is
+   removed or unavailable
 
 ## Validation Result
 

@@ -1,23 +1,19 @@
-"""Transcribe a video with a selectable TTS provider.
+"""Transcribe a video with a local TTS provider.
 
-Extracts mono 16kHz audio via ffmpeg, uploads to Scribe with verbatim +
-diarize + audio events + word-level timestamps, writes the full response
-to <edit_dir>/transcripts/<video_stem>.json.
+This helper keeps the transcript JSON contract unchanged while routing to a
+provider module under `helpers/tts_providers/`.
 
-If ELEVENLABS_API_KEY is missing or set to a local placeholder value, writes
-a minimal placeholder transcript and a reusable silent WAV without calling
-ElevenLabs. The provider-specific behavior now lives behind
-helpers/tts_providers/ so the current placeholder default stays intact while
-future local engines can be added with minimal pipeline churn.
+Supported providers:
+- placeholder: writes a reusable silent WAV plus a minimal transcript JSON
+- piper: optionally synthesizes a local WAV when Piper is installed
 
-Cached: if the output file already exists, the upload is skipped.
+Cached: if the output file already exists, the provider step is skipped.
 
 Usage:
     python helpers/transcribe.py <video_path>
     python helpers/transcribe.py <video_path> --edit-dir /custom/edit
     python helpers/transcribe.py <video_path> --language en
     python helpers/transcribe.py <video_path> --num-speakers 2
-    python helpers/transcribe.py <video_path> --tts-provider elevenlabs
     python helpers/transcribe.py <video_path> --tts-provider piper --piper-voice en_US-lessac-low
 """
 
@@ -26,66 +22,19 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
-import os
 import subprocess
 import sys
-import wave
 import tempfile
-import time
+import wave
 from pathlib import Path
 
-import requests
 
-
-SCRIBE_URL = "https://api.elevenlabs.io/v1/speech-to-text"
-PLACEHOLDER_KEYS = {"", "placeholder", "dummy", "test"}
-PLACEHOLDER_WARNING = "Using placeholder audio because ELEVENLABS_API_KEY is not configured."
 TTS_PROVIDER_PLACEHOLDER = "placeholder"
-TTS_PROVIDER_ELEVENLABS = "elevenlabs"
 TTS_PROVIDER_PIPER = "piper"
 TTS_PROVIDER_MODULES = {
     TTS_PROVIDER_PLACEHOLDER: "placeholder",
-    TTS_PROVIDER_ELEVENLABS: "elevenlabs",
     TTS_PROVIDER_PIPER: "piper",
 }
-
-
-def load_api_key() -> str:
-    for candidate in [Path(__file__).resolve().parent.parent / ".env", Path(".env")]:
-        if candidate.exists():
-            for line in candidate.read_text().splitlines():
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, v = line.split("=", 1)
-                if k.strip() == "ELEVENLABS_API_KEY":
-                    return v.strip().strip('"').strip("'")
-    return os.environ.get("ELEVENLABS_API_KEY", "").strip().strip('"').strip("'")
-
-
-def is_placeholder_key(api_key: str) -> bool:
-    return api_key.strip().lower() in PLACEHOLDER_KEYS
-
-
-def resolve_tts_provider(requested_provider: str, api_key: str) -> tuple[str, bool]:
-    provider = requested_provider.strip().lower() or TTS_PROVIDER_PLACEHOLDER
-    if provider == TTS_PROVIDER_PLACEHOLDER:
-        if is_placeholder_key(api_key):
-            print(PLACEHOLDER_WARNING, file=sys.stderr, flush=True)
-        return provider, True
-    if provider == TTS_PROVIDER_PIPER:
-        return provider, False
-    if provider == TTS_PROVIDER_ELEVENLABS and not is_placeholder_key(api_key):
-        return provider, False
-    print(PLACEHOLDER_WARNING, file=sys.stderr, flush=True)
-    if provider == TTS_PROVIDER_ELEVENLABS:
-        print(
-            "Requested tts provider 'elevenlabs' but no real ELEVENLABS_API_KEY was found; "
-            "using placeholder mode instead.",
-            file=sys.stderr,
-            flush=True,
-        )
-    return TTS_PROVIDER_PLACEHOLDER, True
 
 
 def load_tts_provider_module(provider_name: str):
@@ -99,9 +48,13 @@ def get_video_duration(video: Path) -> float:
     try:
         out = subprocess.run(
             [
-                "ffprobe", "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
                 str(video),
             ],
             capture_output=True,
@@ -135,7 +88,7 @@ def build_placeholder_payload(
     edit_dir: Path,
     *,
     audio_path: Path | None = None,
-    placeholder_reason: str = "ELEVENLABS_API_KEY is not configured",
+    placeholder_reason: str = "placeholder mode active",
     transcript_text: str = "placeholder transcript",
 ) -> dict:
     if audio_path is None:
@@ -162,51 +115,9 @@ def build_placeholder_payload(
     }
 
 
-def extract_audio(video_path: Path, dest: Path) -> None:
-    cmd = [
-        "ffmpeg", "-y", "-i", str(video_path),
-        "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le",
-        str(dest),
-    ]
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-
-def call_scribe(
-    audio_path: Path,
-    api_key: str,
-    language: str | None = None,
-    num_speakers: int | None = None,
-) -> dict:
-    data: dict[str, str] = {
-        "model_id": "scribe_v1",
-        "diarize": "true",
-        "tag_audio_events": "true",
-        "timestamps_granularity": "word",
-    }
-    if language:
-        data["language_code"] = language
-    if num_speakers:
-        data["num_speakers"] = str(num_speakers)
-
-    with open(audio_path, "rb") as f:
-        resp = requests.post(
-            SCRIBE_URL,
-            headers={"xi-api-key": api_key},
-            files={"file": (audio_path.name, f, "audio/wav")},
-            data=data,
-            timeout=1800,
-        )
-
-    if resp.status_code != 200:
-        raise RuntimeError(f"Scribe returned {resp.status_code}: {resp.text[:500]}")
-
-    return resp.json()
-
-
 def transcribe_one(
     video: Path,
     edit_dir: Path,
-    api_key: str,
     tts_provider: str,
     language: str | None = None,
     num_speakers: int | None = None,
@@ -214,16 +125,21 @@ def transcribe_one(
     piper_data_dir: Path | None = None,
     verbose: bool = True,
 ) -> Path:
-    """Transcribe a single video. Returns path to transcript JSON.
+    """Transcribe a single video. Returns path to transcript JSON."""
+    transcripts_dir = edit_dir / "transcripts"
+    transcripts_dir.mkdir(parents=True, exist_ok=True)
+    out_path = transcripts_dir / f"{video.stem}.json"
 
-    Cached: returns existing path immediately if the transcript already exists.
-    """
-    effective_provider, _use_placeholder = resolve_tts_provider(tts_provider, api_key)
-    provider_module = load_tts_provider_module(effective_provider)
+    if out_path.exists():
+        if verbose:
+            print(f"cached: {out_path.name}")
+        return out_path
+
+    provider = (tts_provider.strip().lower() or TTS_PROVIDER_PLACEHOLDER)
+    provider_module = load_tts_provider_module(provider)
     return provider_module.transcribe(
         video=video,
         edit_dir=edit_dir,
-        api_key=api_key,
         language=language,
         num_speakers=num_speakers,
         piper_voice=piper_voice,
@@ -233,7 +149,7 @@ def transcribe_one(
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Transcribe a video with ElevenLabs Scribe")
+    ap = argparse.ArgumentParser(description="Transcribe a video with a local TTS provider")
     ap.add_argument("video", type=Path, help="Path to video file")
     ap.add_argument(
         "--edit-dir",
@@ -257,7 +173,7 @@ def main() -> None:
         "--tts-provider",
         type=str,
         default=TTS_PROVIDER_PLACEHOLDER,
-        choices=[TTS_PROVIDER_PLACEHOLDER, TTS_PROVIDER_ELEVENLABS, TTS_PROVIDER_PIPER],
+        choices=[TTS_PROVIDER_PLACEHOLDER, TTS_PROVIDER_PIPER],
         help="TTS provider selection (default: placeholder)",
     )
     ap.add_argument(
@@ -279,22 +195,17 @@ def main() -> None:
         sys.exit(f"video not found: {video}")
 
     edit_dir = (args.edit_dir or (video.parent / "edit")).resolve()
-    api_key = load_api_key()
-
-    try:
-        transcribe_one(
-            video=video,
-            edit_dir=edit_dir,
-            api_key=api_key,
-            tts_provider=args.tts_provider,
-            language=args.language,
-            num_speakers=args.num_speakers,
-            piper_voice=args.piper_voice,
-            piper_data_dir=args.piper_data_dir,
-        )
-    except Exception as exc:
-        sys.exit(str(exc))
+    transcribe_one(
+        video=video,
+        edit_dir=edit_dir,
+        tts_provider=args.tts_provider,
+        language=args.language,
+        num_speakers=args.num_speakers,
+        piper_voice=args.piper_voice,
+        piper_data_dir=args.piper_data_dir,
+    )
 
 
 if __name__ == "__main__":
     main()
+

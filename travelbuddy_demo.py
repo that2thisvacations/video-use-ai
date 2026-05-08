@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -405,7 +404,7 @@ def main() -> None:
         "--tts-provider",
         type=str,
         default="placeholder",
-        choices=["placeholder", "elevenlabs", "piper"],
+        choices=["placeholder", "piper"],
         help="TTS provider selection (default: placeholder)",
     )
     ap.add_argument(

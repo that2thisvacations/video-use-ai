@@ -66,11 +66,11 @@ Best target:
 
 - `helpers/transcribe.py`
 
-The current audio path is ElevenLabs Scribe. The roadmap should eventually replace or abstract this behind a TravelBuddy-specific provider layer if the product needs independence from ElevenLabs.
+The current audio path is local-first placeholder plus optional Piper. The roadmap should keep that boundary abstracted behind a TravelBuddy-specific provider layer.
 
 Likely options:
 
-- keep ElevenLabs as default and add TravelBuddy-specific fallback behavior
+- keep placeholder as default and add TravelBuddy-specific fallback behavior
 - add a provider abstraction so TravelBuddy can swap engines later
 - introduce a real alternate transcription provider when quality and cost are acceptable
 

@@ -8,14 +8,14 @@ Run from the repo root:
 
 ```bash
 cd ~/Documents/video-use-ai
-ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic
+.venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic
 ```
 
 Explicit provider selection:
 
 ```bash
 cd ~/Documents/video-use-ai
-ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider placeholder
+.venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider placeholder
 ```
 
 Optional Piper path:
@@ -29,20 +29,13 @@ Optional input video:
 
 ```bash
 cd ~/Documents/video-use-ai
-ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --input /path/to/video.mp4 --brand TRAVELBUDDY --style cinematic
+.venv/bin/python3.11 travelbuddy_demo.py --input /path/to/video.mp4 --brand TRAVELBUDDY --style cinematic
 ```
 
 Watermark tuning example:
 
 ```bash
-ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --watermark-opacity 0.95
-```
-
-ElevenLabs demo path:
-
-```bash
-cd ~/Documents/video-use-ai
-ELEVENLABS_API_KEY=your_real_key .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --tts-provider elevenlabs
+.venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --watermark-opacity 0.95
 ```
 
 ## What It Does
@@ -68,20 +61,12 @@ It prints progress logs like:
 
 ## Placeholder Mode
 
-This workflow is designed to run with:
+This workflow is designed to run with the placeholder provider.
 
-```bash
-ELEVENLABS_API_KEY=placeholder
-```
-
-That activates the placeholder transcription path in `helpers/transcribe.py`. ElevenLabs is not called. Instead, the helper writes a reusable silent WAV and a minimal transcript JSON so the rest of the pipeline can continue.
-
-Accepted placeholder values are:
+Accepted values:
 
 ```text
 placeholder
-dummy
-test
 ```
 
 The demo wrapper forwards `--tts-provider`, `--piper-voice`, and `--piper-data-dir` into the transcription helper.
@@ -120,7 +105,7 @@ TravelBuddy branding can be tuned with:
 - Map `--style` to concrete grading and subtitle presets.
 - Add a real brand manifest file for TravelBuddy-specific defaults.
 - Add a second command mode for ingesting a folder of source videos.
-- Add a provider selector for future transcription backends.
+- Add a provider selector for additional local transcription backends.
 - Add an export mode that copies the preview into a named shareable folder.
 
 ## Notes
@@ -128,3 +113,4 @@ TravelBuddy branding can be tuned with:
 - The wrapper does not change the core render engine.
 - It uses the same helper scripts that are already verified in this repo.
 - The workflow still depends on `ffmpeg` and `ffprobe` being available on `PATH`.
+

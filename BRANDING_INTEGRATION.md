@@ -69,13 +69,13 @@ Branded output path in the demo workflow:
 ## Command Example
 
 ```bash
-ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic
+.venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic
 ```
 
 Watermark tuning example:
 
 ```bash
-ELEVENLABS_API_KEY=placeholder .venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --watermark-opacity 0.95
+.venv/bin/python3.11 travelbuddy_demo.py --brand TRAVELBUDDY --style cinematic --watermark-opacity 0.95
 ```
 
 If the canonical assets are present, the wrapper should:

@@ -138,7 +138,7 @@ The official `manim-voiceover` plugin integrates TTS directly into scene code, a
 ### Installation
 
 ```bash
-pip install "manim-voiceover[elevenlabs]"
+pip install "manim-voiceover"
 # Or for free/local TTS:
 pip install "manim-voiceover[gtts]"    # Google TTS (free, lower quality)
 pip install "manim-voiceover[azure]"   # Azure Cognitive Services
@@ -149,14 +149,11 @@ pip install "manim-voiceover[azure]"   # Azure Cognitive Services
 ```python
 from manim import *
 from manim_voiceover import VoiceoverScene
-from manim_voiceover.services.elevenlabs import ElevenLabsService
+from manim_voiceover.services.base import SpeechService
 
 class NarratedScene(VoiceoverScene):
     def construct(self):
-        self.set_speech_service(ElevenLabsService(
-            voice_name="Alice",
-            model_id="eleven_multilingual_v2"
-        ))
+        self.set_speech_service(SpeechService())
 
         # Voiceover auto-controls scene duration
         with self.voiceover(text="Here is a circle being drawn.") as tracker:
@@ -172,7 +169,7 @@ class NarratedScene(VoiceoverScene):
 - `tracker.time_until_bookmark("mark1")` — sync specific animations to specific words
 - Auto-generates subtitle `.srt` files
 - Caches audio locally — re-renders don't re-generate TTS
-- Works with: ElevenLabs, Azure, Google TTS, pyttsx3 (offline), and custom services
+- Works with: Azure, Google TTS, pyttsx3 (offline), and custom services
 
 ### Bookmarks for Precise Sync
 

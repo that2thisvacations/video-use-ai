@@ -6,7 +6,7 @@
 
 The workflow is:
 
-1. Transcribe source videos with a selectable TTS provider route, defaulting to placeholder mode and using ElevenLabs Scribe only when explicitly selected. The provider adapters now live under `helpers/tts_providers/`, and Piper is available as an optional provider path.
+1. Transcribe source videos with a local TTS provider route, defaulting to placeholder mode and allowing Piper when explicitly selected. The provider adapters live under `helpers/tts_providers/`.
 2. Pack word-level transcripts into a compact editorial view.
 3. Have the agent choose cuts from transcript timestamps and silence gaps.
 4. Render an edit with ffmpeg, color grading, audio fades, optional overlays, and optional burned-in subtitles.
@@ -18,8 +18,7 @@ It is structured as a reusable skill/toolkit rather than a hosted web app.
 
 - Python 3.10+
 - ffmpeg and ffprobe for audio/video extraction, rendering, grading, subtitles, and verification
-- ElevenLabs Scribe API for word-level transcription and speaker diarization
-- Python dependencies from `pyproject.toml`: `requests`, `librosa`, `matplotlib`, `pillow`, `numpy`
+- Python dependencies from `pyproject.toml`: `librosa`, `matplotlib`, `pillow`, `numpy`
 - Optional animation tooling:
   - HyperFrames
   - Remotion
@@ -54,18 +53,6 @@ Optional, only if downloading source videos from URLs:
 brew install yt-dlp
 ```
 
-Create a local `.env` from the example and add the ElevenLabs API key:
-
-```bash
-cp .env.example .env
-```
-
-Then edit `.env` so it contains:
-
-```bash
-ELEVENLABS_API_KEY=your_key_here
-```
-
 Daily usage is meant to happen from a footage folder, not from inside the repo:
 
 ```bash
@@ -91,11 +78,11 @@ python ~/Documents/video-use-ai/helpers/render.py /path/to/videos/edit/edl.json 
 ## Important Folders and Files
 
 - `README.md` - product overview, installation notes, and high-level workflow.
-- `install.md` - first-time setup instructions for agents, ffmpeg, dependencies, and API key setup.
+- `install.md` - first-time setup instructions for agents, ffmpeg, dependencies, and local-only provider setup.
 - `SKILL.md` - core editing rules, production workflow, helper descriptions, EDL format, subtitle rules, grading guidance, and animation guidance.
 - `helpers/` - executable Python helper scripts:
-  - `transcribe.py` - provider router for placeholder, ElevenLabs, or optional Piper transcription.
-  - `tts_providers/` - provider adapters for placeholder, ElevenLabs, and Piper.
+  - `transcribe.py` - provider router for placeholder or Piper transcription.
+  - `tts_providers/` - provider adapters for placeholder and Piper.
   - `transcribe_batch.py` - transcribes a folder of videos in parallel.
   - `pack_transcripts.py` - turns raw transcript JSON into compact markdown.
   - `timeline_view.py` - creates filmstrip, waveform, word-label, and silence-gap PNG views.
@@ -104,67 +91,38 @@ python ~/Documents/video-use-ai/helpers/render.py /path/to/videos/edit/edl.json 
   - `timeline_view.py` and `grade.py` are key inspection/customization helpers.
 - `skills/manim-video/` - vendored Manim animation skill and references for technical or diagrammatic animations.
 - `static/` - repo images used by the README and documentation.
-- `.env.example` - documents the required environment variable name.
 - `pyproject.toml` - Python package metadata and dependency list.
 
 ## Required Env Variables
 
-Required for transcription:
+None for the local provider workflow.
 
-```bash
-ELEVENLABS_API_KEY=
-```
-
-The transcription helper also accepts:
+The transcription helper accepts:
 
 ```bash
 --tts-provider placeholder
---tts-provider elevenlabs
 --tts-provider piper
 --piper-voice en_US-lessac-low
 --piper-data-dir /path/to/piper_data
 ```
 
-`placeholder` is the default. `elevenlabs` only uses the live API when a real
-`ELEVENLABS_API_KEY` is present; otherwise it falls back to placeholder mode
-and prints a warning.
+`placeholder` is the default. `piper` is optional and only works when Piper is installed in the current Python environment.
 
-`piper` is optional. If it is not installed in the current Python environment,
-the helper exits with install guidance and does not change the default provider.
+The local-first architecture keeps provider selection inside `helpers/transcribe.py` and provider behavior inside `helpers/tts_providers/`, so future local engines can be added without changing the transcript contract.
 
-The routing boundary is now split into small provider modules under
-`helpers/tts_providers/` so future local engines can be added without changing
-the transcript contract.
+The code looks for provider assets in the repo and in the edit workspace. Do not commit generated audio or temporary model downloads.
 
-Current provider architecture:
+## Placeholder Audio Mode
 
-- `placeholder` - default smoke-test path
-- `elevenlabs` - live ElevenLabs Scribe path when a real key is present
-- `piper` - optional local provider path with standalone voice/model flags
+For local setup or demos without a real provider, transcription falls back to placeholder mode when `--tts-provider placeholder` is selected.
 
-The TravelBuddy demo wrapper also forwards `--tts-provider` into the
-transcription helper so the full demo workflow can be switched without changing
-render logic.
+In placeholder mode, the helper does not synthesize speech. It writes a reusable local silent WAV under `<videos_dir>/edit/placeholder_audio/` and creates a minimal placeholder transcript JSON so downstream packing and editing steps can continue.
 
-The code looks for this key in either:
-
-1. `.env` at the `video-use-ai` repo root
-2. `.env` in the current working directory
-3. The process environment
-
-Do not commit `.env`. The repo currently includes only `.env.example`.
-
-### Placeholder Audio Mode
-
-For local setup or demos without a real ElevenLabs key, transcription falls back to placeholder mode when `ELEVENLABS_API_KEY` is missing or set to `placeholder`, `dummy`, or `test`.
-
-In placeholder mode, the helper does not call ElevenLabs. It writes a reusable local silent WAV under `<videos_dir>/edit/placeholder_audio/` and creates a minimal placeholder transcript JSON so downstream packing and editing steps can continue. The console warning is:
+The console message is:
 
 ```text
-Using placeholder audio because ELEVENLABS_API_KEY is not configured.
+Using placeholder audio mode.
 ```
-
-Switch back to real transcription by setting `ELEVENLABS_API_KEY` to a valid ElevenLabs API key in `.env` or the process environment and deleting any cached placeholder transcript JSON files that should be regenerated.
 
 ## Best Next Customization Path for TravelBuddy Branding
 
@@ -179,3 +137,8 @@ Recommended order:
 5. Add reusable TravelBuddy animation templates under a new brand-specific folder only if repeated overlays are needed.
 
 The safest first step is documentation and prompt-level branding. That gives the agent consistent editorial direction without risking regressions in the ffmpeg render pipeline.
+
+## Local-First Architecture Note
+
+The repo now assumes local-first transcription. Placeholder is the default, Piper is the optional real local provider, and the rest of the pipeline continues to work from the same transcript JSON contract.
+

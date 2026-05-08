@@ -1,7 +1,7 @@
 """Placeholder TTS provider.
 
-This keeps the current no-key smoke test path intact and preserves the
-transcript JSON contract used by the rest of the pipeline.
+This keeps the local smoke-test path intact and preserves the transcript JSON
+contract used by the rest of the pipeline.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ from transcribe import build_placeholder_payload
 def transcribe(
     video: Path,
     edit_dir: Path,
-    api_key: str,
     language: str | None = None,
     num_speakers: int | None = None,
     piper_voice: str | None = None,
@@ -37,3 +36,4 @@ def transcribe(
         print(f"  saved placeholder transcript: {out_path.name}")
         print(f"    placeholder audio: {payload['placeholder_audio']}")
     return out_path
+

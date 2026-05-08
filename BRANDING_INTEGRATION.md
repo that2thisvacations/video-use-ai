@@ -79,6 +79,10 @@ If the canonical assets are present, the wrapper should:
 - overlay the lion watermark in the lower-right corner
 - append the luxury end card as a 2-second outro
 
+If the preview has audio, the branded export should preserve it. If the
+preview has no audio, the branded export should still complete as a
+video-only output instead of failing.
+
 ## Fallback Behavior
 
 If the branding assets are missing:
@@ -87,6 +91,12 @@ If the branding assets are missing:
 - keep the base preview flow intact
 - print a clear message naming the missing asset
 - do not fail the demo workflow
+
+If the preview has no audio:
+
+- print a clear message that video-only branded export is being used
+- continue generating `edit/preview_branded.mp4`
+- keep `edit/preview.mp4` unchanged
 
 ## Safest Next Implementation Step
 

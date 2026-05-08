@@ -199,6 +199,27 @@ def asset_exists(path: Path | None) -> bool:
     return path is not None and path.exists()
 
 
+def has_audio_stream(video_path: Path) -> bool:
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "stream=index",
+            "-of",
+            "csv=p=0",
+            str(video_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return bool(result.stdout.strip())
+
+
 def build_branded_preview(
     preview_path: Path,
     branded_path: Path,
@@ -221,105 +242,132 @@ def build_branded_preview(
         watermarked = tmpdir / "preview_watermarked.mp4"
         endcard_clip = tmpdir / "endcard.mp4"
         preview_width, preview_height = probe_dimensions(preview_path)
+        preview_has_audio = has_audio_stream(preview_path)
+
+        if preview_has_audio:
+            print("Audio detected; preserving preview audio during branded export", flush=True)
+        else:
+            print("No audio detected; using video-only branded export", flush=True)
 
         print("Applying TravelBuddy watermark and end card...", flush=True)
-        run(
-            [
-                "ffmpeg",
-                "-y",
-                "-i",
-                str(preview_path),
-                "-i",
-                str(hooks.watermark_path),
-                "-filter_complex",
-                (
-                    "[1:v]scale=iw*0.22:-1[wm];"
-                    "[0:v][wm]overlay=W-w-32:H-h-32:format=auto[outv]"
-                ),
-                "-map",
-                "[outv]",
-                "-map",
-                "0:a",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "fast",
-                "-crf",
-                "18",
-                "-pix_fmt",
-                "yuv420p",
-                "-c:a",
-                "copy",
-                "-movflags",
-                "+faststart",
-                str(watermarked),
-            ]
-        )
+        watermark_cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(preview_path),
+            "-i",
+            str(hooks.watermark_path),
+            "-filter_complex",
+            (
+                "[1:v]scale=iw*0.22:-1[wm];"
+                "[0:v][wm]overlay=W-w-32:H-h-32:format=auto[outv]"
+            ),
+            "-map",
+            "[outv]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+        ]
+        if preview_has_audio:
+            watermark_cmd.extend(["-map", "0:a", "-c:a", "copy"])
+        watermark_cmd.append(str(watermarked))
+        run(watermark_cmd)
 
-        run(
-            [
-                "ffmpeg",
-                "-y",
-                "-loop",
-                "1",
-                "-t",
-                "2",
-                "-i",
-                str(hooks.endcard_path),
-                "-f",
-                "lavfi",
-                "-t",
-                "2",
-                "-i",
-                "anullsrc=channel_layout=mono:sample_rate=48000",
-                "-filter_complex",
-                (
-                    f"[0:v]scale={preview_width}:{preview_height}:"
-                    "force_original_aspect_ratio=decrease,"
-                    f"pad={preview_width}:{preview_height}:(ow-iw)/2:(oh-ih)/2,"
-                    "setsar=1,format=yuv420p[v]"
-                ),
-                "-c:v",
-                "libx264",
-                "-preset",
-                "fast",
-                "-crf",
-                "18",
-                "-pix_fmt",
-                "yuv420p",
-                "-r",
-                "24",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
-                "-ar",
-                "48000",
-                "-shortest",
-                "-movflags",
-                "+faststart",
-                "-map",
-                "[v]",
-                "-map",
-                "1:a",
-                str(endcard_clip),
-            ]
-        )
+        endcard_cmd = [
+            "ffmpeg",
+            "-y",
+            "-loop",
+            "1",
+            "-t",
+            "2",
+            "-i",
+            str(hooks.endcard_path),
+            "-f",
+            "lavfi",
+            "-t",
+            "2",
+            "-i",
+            "anullsrc=channel_layout=mono:sample_rate=48000",
+            "-filter_complex",
+            (
+                f"[0:v]scale={preview_width}:{preview_height}:"
+                "force_original_aspect_ratio=decrease,"
+                f"pad={preview_width}:{preview_height}:(ow-iw)/2:(oh-ih)/2,"
+                "setsar=1,format=yuv420p[v]"
+            ),
+            "-map",
+            "[v]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            "24",
+            "-movflags",
+            "+faststart",
+        ]
+        if preview_has_audio:
+            endcard_cmd.extend(
+                [
+                    "-map",
+                    "1:a",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "128k",
+                    "-ar",
+                    "48000",
+                    "-shortest",
+                ]
+            )
+        endcard_cmd.append(str(endcard_clip))
+        run(endcard_cmd)
 
-        run(
+        concat_cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(watermarked),
+            "-i",
+            str(endcard_clip),
+        ]
+        if preview_has_audio:
+            concat_cmd.extend(
+                [
+                    "-filter_complex",
+                    "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]",
+                    "-map",
+                    "[v]",
+                    "-map",
+                    "[a]",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "128k",
+                ]
+            )
+        else:
+            concat_cmd.extend(
+                [
+                    "-filter_complex",
+                    "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+                    "-map",
+                    "[v]",
+                ]
+            )
+        concat_cmd.extend(
             [
-                "ffmpeg",
-                "-y",
-                "-i",
-                str(watermarked),
-                "-i",
-                str(endcard_clip),
-                "-filter_complex",
-                "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]",
-                "-map",
-                "[v]",
-                "-map",
-                "[a]",
                 "-c:v",
                 "libx264",
                 "-preset",
@@ -328,15 +376,12 @@ def build_branded_preview(
                 "18",
                 "-pix_fmt",
                 "yuv420p",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
                 "-movflags",
                 "+faststart",
                 str(branded_path),
             ]
         )
+        run(concat_cmd)
 
     return True
 

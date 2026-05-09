@@ -32,6 +32,9 @@ DEFAULT_CAPTION_STYLE = "cinematic_gold"
 DEFAULT_CONTENT_TYPE = "mentor_pitch"
 BRANDING_ROOT = REPO_ROOT / "branding"
 BRANDING_ASSETS = BRANDING_ROOT / "assets"
+CREATOR_EXPORT_ROOT = REPO_ROOT / "outputs"
+CREATOR_SINGLE_EXPORT_DIR = CREATOR_EXPORT_ROOT / "single"
+CREATOR_BATCH_EXPORT_DIR = CREATOR_EXPORT_ROOT / "batch"
 PAUSE_PROFILE_DEFAULT = "natural"
 PAUSE_PROFILE_MS = {
     "tight": 120,
@@ -334,17 +337,91 @@ def slugify_text(text: str, *, fallback: str = "item", max_len: int = 48) -> str
     return cleaned[:max_len].strip("-") or fallback
 
 
-def resolve_travelbuddy_reel_options(args: argparse.Namespace) -> argparse.Namespace:
-    args.social_ready = True
-    args.brand = args.brand or DEFAULT_BRAND
-    args.style = args.style or DEFAULT_STYLE
-    args.export_preset = args.export_preset or DEFAULT_EXPORT_PRESET
-    args.caption_style = args.caption_style or DEFAULT_CAPTION_STYLE
-    args.content_type = args.content_type or DEFAULT_CONTENT_TYPE
-    args.tts_provider = args.tts_provider or "piper"
-    args.pause_profile = args.pause_profile or PAUSE_PROFILE_DEFAULT
-    args.piper_voice = args.piper_voice or "en_US-lessac-low"
-    return args
+def creator_export_date() -> str:
+    return datetime.now().astimezone().strftime("%Y-%m-%d")
+
+
+def ensure_creator_export_dirs() -> None:
+    CREATOR_SINGLE_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+    CREATOR_BATCH_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def unique_export_path(directory: Path, filename: str) -> Path:
+    candidate = directory / filename
+    if not candidate.exists():
+        return candidate
+    stem = candidate.stem
+    suffix = candidate.suffix
+    counter = 2
+    while True:
+        alternate = directory / f"{stem}_{counter}{suffix}"
+        if not alternate.exists():
+            return alternate
+        counter += 1
+
+
+def copy_export_file(source: Path, destination: Path) -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+    return destination
+
+
+def export_creator_single_outputs(
+    topic: str | None,
+    final_social_path: Path | None,
+    generated_script_path: Path | None,
+) -> list[Path]:
+    ensure_creator_export_dirs()
+    exported: list[Path] = []
+    if final_social_path is None or not final_social_path.exists():
+        return exported
+    slug = slugify_text(topic or final_social_path.stem, fallback="travelbuddy-reel")
+    prefix = f"{creator_export_date()}_{slug}"
+    exported.append(
+        copy_export_file(
+            final_social_path,
+            unique_export_path(CREATOR_SINGLE_EXPORT_DIR, f"{prefix}_final_social.mp4"),
+        )
+    )
+    if generated_script_path is not None and generated_script_path.exists():
+        exported.append(
+            copy_export_file(
+                generated_script_path,
+                unique_export_path(CREATOR_SINGLE_EXPORT_DIR, f"{prefix}_script.json"),
+            )
+        )
+    return exported
+
+
+def export_creator_batch_outputs(
+    topic: str | None,
+    final_social_path: Path | None,
+    batch_label: str | None,
+) -> list[Path]:
+    ensure_creator_export_dirs()
+    exported: list[Path] = []
+    if final_social_path is None or not final_social_path.exists():
+        return exported
+    slug = slugify_text(topic or final_social_path.stem, fallback="travelbuddy-reel")
+    label = slugify_text(batch_label or "reel", fallback="reel")
+    prefix = f"{creator_export_date()}_{label}_{slug}"
+    exported.append(
+        copy_export_file(
+            final_social_path,
+            unique_export_path(CREATOR_BATCH_EXPORT_DIR, f"{prefix}.mp4"),
+        )
+    )
+    return exported
+
+
+def export_batch_manifest_files(manifest_json_path: Path, manifest_md_path: Path) -> list[Path]:
+    ensure_creator_export_dirs()
+    exported: list[Path] = []
+    if manifest_json_path.exists():
+        exported.append(copy_export_file(manifest_json_path, CREATOR_BATCH_EXPORT_DIR / "batch_manifest.json"))
+    if manifest_md_path.exists():
+        exported.append(copy_export_file(manifest_md_path, CREATOR_BATCH_EXPORT_DIR / "batch_manifest.md"))
+    return exported
 
 
 def resolve_pause_ms(pause_profile: str, pause_ms: int | None) -> int:
@@ -1288,6 +1365,20 @@ def print_travelbuddy_reel_banner(topic: str, final_path: Path) -> None:
     print("==================================================", flush=True)
 
 
+def print_creator_exports_ready_banner() -> None:
+    print()
+    print("==================================================", flush=True)
+    print("TRAVELBUDDY EXPORTS READY", flush=True)
+    print("==================================================", flush=True)
+    print("Single:", flush=True)
+    print("outputs/single/", flush=True)
+    print("", flush=True)
+    print("Batch:", flush=True)
+    print("outputs/batch/", flush=True)
+    print("", flush=True)
+    print("==================================================", flush=True)
+
+
 def copy_batch_outputs(edit_dir: Path, batch_copy_to: Path) -> list[Path]:
     batch_copy_to.mkdir(parents=True, exist_ok=True)
     copied: list[Path] = []
@@ -1469,6 +1560,7 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
         )
 
     manifest_json_path, manifest_md_path = write_batch_manifest(batch_edit_root, manifest_records)
+    exported_manifest_files = export_batch_manifest_files(manifest_json_path, manifest_md_path)
     print()
     print("==================================================", flush=True)
     print("TRAVELBUDDY BATCH COMPLETE", flush=True)
@@ -1487,6 +1579,11 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
     print(f"Manifest JSON: {manifest_json_path}", flush=True)
     print(f"Manifest Markdown: {manifest_md_path}", flush=True)
     print(f"Batch workspace: {batch_root}", flush=True)
+    if exported_manifest_files:
+        print_creator_exports_ready_banner()
+        print("Creator exports:", flush=True)
+        for path in exported_manifest_files:
+            print(f"  - {path}", flush=True)
     return 0 if failures == 0 else 1
 
 
@@ -1867,16 +1964,27 @@ def main() -> None:
     print(f"Preview video path: {preview_path}")
     if branded_generated:
         print(f"Branded preview video path: {branded_path}")
-    if args.social_ready:
-        final_social_path = edit_dir / "final_social.mp4"
-        if final_social_path.exists():
-            print(f"Final social video path: {final_social_path}")
+    final_social_path = edit_dir / "final_social.mp4"
+    creator_exports: list[Path] = []
+    if args.social_ready and final_social_path.exists():
+        print(f"Final social video path: {final_social_path}")
+        if args.batch_copy_to is None:
+            creator_exports = export_creator_single_outputs(args.topic, final_social_path, generated_script_path)
+            if creator_exports:
+                print_creator_exports_ready_banner()
+                print("Creator exports:", flush=True)
+                for path in creator_exports:
+                    print(f"  - {path}", flush=True)
     if args.batch_copy_to is not None:
         copied_batch_files = copy_batch_outputs(edit_dir, args.batch_copy_to)
         if copied_batch_files:
             print(f"Batch output path: {args.batch_copy_to}", flush=True)
             for path in copied_batch_files:
                 print(f"  batch copy: {path}", flush=True)
+        creator_batch_exports = export_creator_batch_outputs(args.topic, final_social_path, args.batch_copy_to.name)
+        if creator_batch_exports:
+            for path in creator_batch_exports:
+                print(f"  creator export: {path}", flush=True)
     if generated_script_path is not None:
         print(f"Generated script path: {generated_script_path}")
     print(f"Branding mode: {'active' if hooks.active else 'inactive'}")

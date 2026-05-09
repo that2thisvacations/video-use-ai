@@ -130,6 +130,7 @@ The flagship daily command is `--travelbuddy-reel`, which layers the social-read
 For creator batching, `--topics-file` turns a plain text list into multiple reel runs and writes each result into `edit/batch/reel_###/`.
 The batch runner also writes `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` so the run can be reviewed after the fact.
 `examples/topics_daily.txt` is the recommended 10-topic starter list for daily batching.
+Creator-facing copies are also exported to `outputs/single/` for single reels and `outputs/batch/` for batch reels so the polished deliverables are easy to find after the run.
 
 The code looks for provider assets in the repo and in the edit workspace. Do not commit generated audio or temporary model downloads.
 The workflow assumes `ffmpeg` and `ffprobe` are available on `PATH`; the system `ffprobe` binary is fine.
@@ -157,6 +158,8 @@ Verified caption rendering behavior:
 - pause timing can be tuned with `pause_profile` and `applied_pause_ms` for more natural narration gaps
 - if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
+- `outputs/single/` stores timestamped single-reel deliverables and script JSON copies
+- `outputs/batch/` stores timestamped batch reel deliverables plus batch manifests
 - `--travelbuddy-reel` is the recommended daily creator shortcut and still preserves manual overrides
 - `--topics-file` batches multiple reels from a plain text topic list
 - `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` summarize batch runs with probe metadata and per-reel status

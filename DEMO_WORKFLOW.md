@@ -197,12 +197,17 @@ Expected files:
 - `edit/generated_script.json` when `--topic` is selected
 - `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
 - `edit/generated_script.json` also carries `script_style`, `voice_chunks`, `suggested_pause_ms`, `caption_groups`, `emphasis_words`, and `emphasis_pop_ms` for local pacing and subtitle grouping
+- creator-facing export copies are written to `outputs/single/` for single reels and `outputs/batch/` for batch reels
+- single reel exports use timestamped slug names such as `2026-05-09_travel-is-the-new-freedom_final_social.mp4` and `2026-05-09_travel-is-the-new-freedom_script.json`
+- batch exports use timestamped reel names such as `2026-05-09_reel_001_travel-is-the-new-freedom.mp4`
+- batch manifests are copied to `outputs/batch/batch_manifest.json` and `outputs/batch/batch_manifest.md`
 
 The script also prints:
 
 - output directory
 - preview video path
 - generated files
+- creator-facing export paths when `outputs/` copies are written
 
 `final_social.mp4` is the convenience alias for the polished social-ready result. It copies the best available 9:16 social export, normally `preview_branded_916_captioned.mp4`.
 When `--travelbuddy-reel` is selected, the script prints a compact reel-ready banner and still writes the same `final_social.mp4` alias.

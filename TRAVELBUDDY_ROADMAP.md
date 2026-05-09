@@ -258,6 +258,9 @@ The safest batch pattern is:
 4. Expand only after the reel output quality is confirmed.
 5. Review `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` after the run.
 6. Start from `examples/topics_daily.txt` when you want a repeatable daily topic pack.
+7. Pull final creator exports from `outputs/batch/` after the batch is approved.
+
+Single reels use the same workflow but copy the polished deliverables into `outputs/single/`.
 
 Batch review workflow:
 
@@ -265,6 +268,7 @@ Batch review workflow:
 2. Inspect `edit/batch/batch_manifest.md` for status and probe metadata.
 3. Use `REEL_BATCH_REVIEW_TEMPLATE.md` to score each reel.
 4. Rerender only the weak reels instead of rerunning the whole list.
+5. Copy the approved deliverables from `outputs/batch/` for publishing.
 
 ### Phase E: Topic-Driven Workflow
 

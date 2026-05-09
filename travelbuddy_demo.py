@@ -78,6 +78,7 @@ def augment_transcript_with_script(transcript_path: Path, script: dict[str, obje
     transcript["voice_chunks"] = script.get("voice_chunks", [])
     transcript["suggested_pause_ms"] = script.get("suggested_pause_ms")
     transcript["caption_groups"] = script.get("caption_groups", [])
+    transcript["script_style"] = script.get("script_style")
     transcript["generated_script_path"] = str(transcript_path.parent.parent / "generated_script.json")
     transcript_path.write_text(json.dumps(transcript, indent=2))
 

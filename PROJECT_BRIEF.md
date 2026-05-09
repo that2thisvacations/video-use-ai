@@ -131,7 +131,7 @@ Phase A metadata modules:
 
 - `helpers/export_presets.py` for social export aspect ratios, safe zones, and output suffix metadata
 - `helpers/caption_styles.py` for subtitle style metadata and future caption treatment hints
-- `helpers/script_engine.py` for deterministic topic-to-script generation and future script-generation hooks
+- `helpers/script_engine.py` for deterministic topic-to-script generation, script-style routing, and future script-generation hooks
 
 Verified vertical export behavior:
 
@@ -143,7 +143,7 @@ Verified caption rendering behavior:
 
 - `cinematic_gold` now produces `edit/preview_branded_916_captioned.mp4`
 - captions are rendered as lightweight Python-generated overlay plates and composited with ffmpeg
-- topic-driven scripts can now provide `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for cleaner rhythm
+- topic-driven scripts can now provide `script_style`, `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for cleaner rhythm
 - if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
 - `--topic` produces `edit/generated_script.json` and can feed chunked Piper narration plus caption grouping
@@ -181,6 +181,7 @@ Future content pipeline notes:
 - script generation now has a deterministic local topic-to-script path in `edit/generated_script.json`
 - Piper can narrate the generated `voice_chunks` when `--topic` is provided, with `voice_text` as fallback
 - caption rendering prefers `caption_groups` when they are available in the transcript JSON
+- `script_style` captures whether the writing should feel punchy, cinematic, urgent, luxury, or mentor-led
 - the first real preset behavior should stay additive and isolated to `cinematic_916`
 - the first caption behavior should stay additive and isolated to `cinematic_gold`
 - the social-ready wrapper should remain additive and should not replace the manual preset path

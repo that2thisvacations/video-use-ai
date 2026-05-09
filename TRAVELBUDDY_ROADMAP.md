@@ -74,6 +74,12 @@ Likely options:
 - add a provider abstraction so TravelBuddy can swap engines later
 - introduce a real alternate transcription provider when quality and cost are acceptable
 
+The topic-to-script path now also carries a deterministic writing-rhythm layer:
+
+- `script_style` records whether the script should feel punchy, cinematic, urgent, luxury, or mentor-led
+- `voice_chunks` give Piper shorter narration beats
+- `caption_groups` give the first subtitle pass cleaner breaks
+
 ### Render Templates
 
 Best targets:
@@ -229,6 +235,7 @@ Scope:
 - generate a deterministic `edit/generated_script.json`
 - feed chunked `voice_chunks` into the Piper narration path when available
 - mirror `caption_groups` into the transcript JSON for cleaner caption breaks
+- preserve `script_style` so later writing or automation layers can reuse the pacing intent
 - keep placeholder mode and manual preset selection intact
 
 Deliverable:

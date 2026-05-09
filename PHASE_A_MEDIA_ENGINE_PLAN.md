@@ -46,6 +46,10 @@ Target content categories:
 This is still a routing boundary. It does not call any AI API and does not
 change transcripts, EDL structure, or render behavior.
 
+The first quality pass is template-driven and intentionally deterministic. It
+can vary hooks, sentence rhythm, and CTA phrasing without introducing random
+generation.
+
 The first topic-driven pass should remain template-based only. A real AI-backed
 script layer can later reuse the same JSON shape:
 
@@ -56,6 +60,7 @@ script layer can later reuse the same JSON shape:
 - `voice_chunks`
 - `suggested_pause_ms`
 - `caption_groups`
+- `script_style`
 - `voice_text`
 
 ## Future Automation API Vision
@@ -121,6 +126,8 @@ caption layer is visually approved on real clips.
 The first topic-driven script pass now exists:
 
 - `--topic` writes `edit/generated_script.json`
+- `script_style` captures the intended writing rhythm in the generated script
 - `voice_chunks` from the generated script are joined for Piper narration when selected
 - `caption_groups` from the generated script are mirrored into the transcript JSON for caption grouping
+- `suggested_pause_ms` provides a deterministic pause hint for the narration path
 - placeholder mode stays unchanged unless `--topic` is used

@@ -148,7 +148,7 @@ Expected files:
 - `edit/final_social.mp4` when `--social-ready` is selected
 - `edit/generated_script.json` when `--topic` is selected
 - `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
-- `edit/generated_script.json` also carries `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for local pacing and subtitle grouping
+- `edit/generated_script.json` also carries `script_style`, `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for local pacing and subtitle grouping
 
 The script also prints:
 
@@ -158,7 +158,7 @@ The script also prints:
 
 `final_social.mp4` is the convenience alias for the polished social-ready result. It copies the best available 9:16 social export, normally `preview_branded_916_captioned.mp4`.
 
-When `--topic` is provided, the wrapper generates a deterministic topic script and saves it to `edit/generated_script.json`. The `voice_chunks` field drives chunked Piper narration, `caption_groups` drives the first caption grouping pass, and `voice_text` remains the fallback narration string.
+When `--topic` is provided, the wrapper generates a deterministic topic script and saves it to `edit/generated_script.json`. The `script_style` field records the intended rhythm profile, `voice_chunks` drives chunked Piper narration, `caption_groups` drives the first caption grouping pass, and `voice_text` remains the fallback narration string.
 
 TravelBuddy branding can be tuned with:
 
@@ -175,7 +175,7 @@ TravelBuddy branding can be tuned with:
 - Add a provider selector for additional local transcription backends.
 - Add content-type routing for future AI script generation and caption presets.
 - Add richer topic-to-script templates or a real AI-backed generator later, behind the same `generated_script.json` contract.
-- Add better narration chunk timing and caption emphasis once the static rhythm pass is approved.
+- Add better narration chunk timing, phrasing pools, and caption emphasis once the static rhythm pass is approved.
 - Expand caption styles into animated subtitle treatments after the static overlay pass is validated.
 - Add an export mode that copies the preview into a named shareable folder.
 

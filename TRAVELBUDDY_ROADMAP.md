@@ -224,6 +224,21 @@ The simplified social-ready wrapper should stay above this layer. It can
 select the current best preset set, generate `preview_branded_916_captioned.mp4`,
 and copy it to `final_social.mp4` without changing how presets are represented.
 
+### Creator Content Modes
+
+The next low-risk routing layer is deterministic creator modes. These are
+lightweight tone profiles, not AI APIs:
+
+- `motivational`
+- `breaking_news`
+- `luxury`
+- `airport_intel`
+- `ai_marketing`
+- `mentor_story`
+
+These modes steer hooks, pacing, CTA phrasing, voice chunk rhythm, emphasis
+words, and `script_style` metadata while keeping the render pipeline intact.
+
 ## Recommended Daily Creator Flow
 
 Use `--travelbuddy-reel` as the one-command daily path when the goal is a

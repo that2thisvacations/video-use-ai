@@ -34,6 +34,18 @@ cd ~/Documents/video-use-ai
 ```
 
 The wrapper forwards extra args to `travelbuddy_demo.py`, adds `--travelbuddy-reel` and `--open-output`, and prints a creator-mode banner before launching the render.
+It also forwards `--mode`, so you can shift tone deterministically without changing the render pipeline.
+
+Mode examples:
+
+```bash
+./travelbuddy reel "AI is replacing average marketing." --mode ai_marketing
+./travelbuddy reel "Your next paycheck could come from an airport." --mode airport_intel
+./travelbuddy reel "Stop applying. Start building." --mode motivational
+./travelbuddy reel "Luxury travel feels calm." --mode luxury
+./travelbuddy reel "Breaking: travel demand is shifting." --mode breaking_news
+./travelbuddy reel "The best mentor stories sound simple." --mode mentor_story
+```
 
 ## Exact Command
 
@@ -92,6 +104,11 @@ TravelBuddy reel shortcut:
 ```bash
 cd ~/Documents/video-use-ai
 ./.venv/bin/python3.11 travelbuddy_demo.py --travelbuddy-reel --topic "Travel is the new freedom."
+```
+
+```bash
+cd ~/Documents/video-use-ai
+./travelbuddy reel "AI is replacing average marketing." --mode ai_marketing
 ```
 
 Batch reel workflow:

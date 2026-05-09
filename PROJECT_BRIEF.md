@@ -127,6 +127,26 @@ Model location convention:
 The local-first architecture keeps provider selection inside `helpers/transcribe.py` and provider behavior inside `helpers/tts_providers/`, so future local engines can be added without changing the transcript contract.
 TravelBuddy uses `--pause-profile natural` as the documented default for daily/social rhythm; use `tight` for fast news or quick-hit content and `dramatic` for motivational or emphasis reels.
 The flagship daily command is `--travelbuddy-reel`, which layers the social-ready stack with Piper narration, `cinematic_916`, `cinematic_gold`, natural pacing, and mentor_pitch routing.
+Deterministic creator modes add another light routing layer:
+
+- `motivational`
+- `breaking_news`
+- `luxury`
+- `airport_intel`
+- `ai_marketing`
+- `mentor_story`
+
+Mode examples:
+
+```bash
+./travelbuddy reel "AI is replacing average marketing." --mode ai_marketing
+./travelbuddy reel "Your next paycheck could come from an airport." --mode airport_intel
+./travelbuddy reel "Stop applying. Start building." --mode motivational
+./travelbuddy reel "Luxury travel feels calm." --mode luxury
+./travelbuddy reel "Breaking: travel demand is shifting." --mode breaking_news
+./travelbuddy reel "The best mentor stories sound simple." --mode mentor_story
+```
+
 For creator batching, `--topics-file` turns a plain text list into multiple reel runs and writes each result into `edit/batch/reel_###/`.
 The batch runner also writes `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` so the run can be reviewed after the fact.
 `examples/topics_daily.txt` is the recommended 10-topic starter list for daily batching.

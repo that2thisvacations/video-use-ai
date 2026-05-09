@@ -20,7 +20,7 @@ from pathlib import Path
 
 from helpers.caption_styles import CaptionStyle, get_caption_style
 from helpers.export_presets import ExportPreset, get_export_preset
-from helpers.script_engine import generate_script_stub, get_routing_hint, normalize_content_type
+from helpers.script_engine import generate_script_stub, get_mode_profile, get_routing_hint, normalize_content_type
 
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -64,6 +64,8 @@ class WatermarkSettings:
 class DemoContentMetadata:
     export_preset: ExportPreset
     caption_style: CaptionStyle
+    mode: str | None
+    mode_description: str | None
     content_type: str
     script_stub: dict[str, object]
 
@@ -73,6 +75,8 @@ class DemoContentMetadata:
             "export_preset_details": asdict(self.export_preset),
             "caption_style": self.caption_style.name,
             "caption_style_details": asdict(self.caption_style),
+            "mode": self.mode,
+            "mode_description": self.mode_description,
             "content_type": self.content_type,
             "script_stub": self.script_stub,
         }
@@ -902,23 +906,33 @@ def build_content_metadata(
     caption_style: CaptionStyle,
     content_type: str,
     brand: str,
+    mode: str | None = None,
     topic: str | None = None,
 ) -> DemoContentMetadata:
+    mode_profile = get_mode_profile(mode)
     if topic:
         script_stub = generate_script_stub(
             topic,
             content_type,
+            mode=mode,
             brand=brand,
             export_preset=export_preset.name,
             caption_style=caption_style.name,
         )
     else:
         content_key = normalize_content_type(str(content_type))
+        if mode_profile is not None:
+            content_key = normalize_content_type(str(mode_profile.get("content_type", content_key)))
         script_stub = {
             "brand": brand.strip().upper() or DEFAULT_BRAND,
+            "mode": mode,
+            "mode_description": mode_profile.get("mode_description") if mode_profile else None,
             "content_type": content_key,
             "export_preset": export_preset.name,
             "caption_style": caption_style.name,
+            "script_style": mode_profile.get("script_style") if mode_profile else None,
+            "hook_style": mode_profile.get("hook_style") if mode_profile else None,
+            "pacing_profile": mode_profile.get("pacing_profile") if mode_profile else None,
             "routing_hint": get_routing_hint(content_key),
             "notes": [
                 "future LLM call site",
@@ -929,6 +943,8 @@ def build_content_metadata(
     return DemoContentMetadata(
         export_preset=export_preset,
         caption_style=caption_style,
+        mode=script_stub.get("mode") if isinstance(script_stub, dict) else None,
+        mode_description=script_stub.get("mode_description") if isinstance(script_stub, dict) else None,
         content_type=str(script_stub["content_type"]),
         script_stub=script_stub,
     )
@@ -1477,6 +1493,8 @@ def build_reel_subprocess_cmd(args: argparse.Namespace, topic: str, batch_copy_t
         cmd.extend(["--brand", args.brand])
     if args.style is not None:
         cmd.extend(["--style", args.style])
+    if args.mode is not None:
+        cmd.extend(["--mode", args.mode])
     if args.export_preset is not None:
         cmd.extend(["--export-preset", args.export_preset])
     if args.caption_style is not None:
@@ -1618,6 +1636,13 @@ def main() -> None:
     ap.add_argument("--brand", type=str, default=None, help="Brand label placeholder")
     ap.add_argument("--style", type=str, default=None, help="Render style placeholder")
     ap.add_argument(
+        "--mode",
+        type=str,
+        default=None,
+        choices=["motivational", "breaking_news", "luxury", "airport_intel", "ai_marketing", "mentor_story"],
+        help="Deterministic creator mode routing",
+    )
+    ap.add_argument(
         "--export-preset",
         type=str,
         default=None,
@@ -1728,6 +1753,7 @@ def main() -> None:
     else:
         args.brand = args.brand or DEFAULT_BRAND
         args.style = args.style or DEFAULT_STYLE
+        args.mode = args.mode or None
         args.export_preset = args.export_preset or DEFAULT_EXPORT_PRESET
         args.caption_style = args.caption_style or DEFAULT_CAPTION_STYLE
         args.content_type = args.content_type or DEFAULT_CONTENT_TYPE
@@ -1746,6 +1772,7 @@ def main() -> None:
         caption_style=caption_style,
         content_type=args.content_type,
         brand=args.brand,
+        mode=args.mode,
         topic=args.topic,
     )
     applied_pause_ms = resolve_pause_ms(args.pause_profile, args.pause_ms)
@@ -1801,6 +1828,11 @@ def main() -> None:
             flush=True,
         )
         print(f"  script routing: {content_metadata.script_stub['routing_hint']}", flush=True)
+        if content_metadata.mode:
+            print(
+                f"  creator mode: {content_metadata.mode} / {content_metadata.mode_description}",
+                flush=True,
+            )
         if args.travelbuddy_reel:
             print("  flagship reel preset: enabled", flush=True)
     else:
@@ -1819,6 +1851,8 @@ def main() -> None:
         print(f"  topic: {args.topic}", flush=True)
         print(f"  generated headline: {content_metadata.script_stub.get('headline', '')}", flush=True)
         print(f"  content type: {content_metadata.content_type}", flush=True)
+        if content_metadata.mode:
+            print(f"  mode: {content_metadata.mode}", flush=True)
         print(f"  narration length: {len(narration_text or '')} chars", flush=True)
         print(f"  applied pause: {applied_pause_ms} ms", flush=True)
         print(f"  generated script path: {generated_script_path}", flush=True)

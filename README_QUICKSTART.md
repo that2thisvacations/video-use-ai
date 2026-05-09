@@ -23,31 +23,43 @@ Optional Piper voice download:
 ./travelbuddy reel "Stop applying. Start building." --pause-profile dramatic
 ```
 
-## D) Batch Reels
+## D) Creator Modes
+```bash
+./travelbuddy reel "AI is replacing average marketing." --mode ai_marketing
+./travelbuddy reel "Your next paycheck could come from an airport." --mode airport_intel
+./travelbuddy reel "Stop applying. Start building." --mode motivational
+./travelbuddy reel "Breaking: travel demand is shifting." --mode breaking_news
+./travelbuddy reel "Luxury travel feels calm." --mode luxury
+./travelbuddy reel "The best mentor stories sound simple." --mode mentor_story
+```
+
+## E) Batch Reels
 ```bash
 ./travelbuddy batch examples/topics_daily.txt
 ```
 
-## E) Output Locations
+## F) Output Locations
 - `outputs/single/`
 - `outputs/batch/`
 - `edit/`
 
-## F) Common Flags
+## G) Common Flags
 - `--pause-profile`
 - `--content-type`
+- `--mode`
 - `--caption-style`
 - `--open-output`
 
-## G) Troubleshooting
+## H) Troubleshooting
 - Piper missing: install `piper-tts` in `.venv`, then download a voice model.
 - ffmpeg missing: install with `brew install ffmpeg`.
 - ffprobe missing: use the system ffprobe that ships with ffmpeg.
 - Finder open issues: rerun without `--open-output`, then open the folder manually.
 
-## H) Recommended Daily Creator Workflow
+## I) Recommended Daily Creator Workflow
 ```bash
 ./travelbuddy reel "Travel is the new freedom."
 ./travelbuddy reel "Stop applying. Start building." --pause-profile dramatic
+./travelbuddy reel "AI is replacing average marketing." --mode ai_marketing
 ./travelbuddy batch examples/topics_daily.txt
 ```

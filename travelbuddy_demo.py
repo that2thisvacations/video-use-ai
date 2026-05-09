@@ -424,6 +424,21 @@ def export_batch_manifest_files(manifest_json_path: Path, manifest_md_path: Path
     return exported
 
 
+def open_output_location(path: Path) -> bool:
+    if sys.platform != "darwin":
+        print(f"Output location: {path}", flush=True)
+        return False
+    if shutil.which("open") is None:
+        print(f"Output location: {path}", flush=True)
+        return False
+    try:
+        subprocess.run(["open", str(path)], check=False)
+        return True
+    except Exception:
+        print(f"Output location: {path}", flush=True)
+        return False
+
+
 def resolve_pause_ms(pause_profile: str, pause_ms: int | None) -> int:
     if pause_ms is not None and pause_ms >= 0:
         return int(pause_ms)
@@ -1688,6 +1703,11 @@ def main() -> None:
         default=None,
         help=argparse.SUPPRESS,
     )
+    ap.add_argument(
+        "--open-output",
+        action="store_true",
+        help="Open the creator-facing export folder in Finder after rendering",
+    )
     args = ap.parse_args()
 
     if args.topics_file is not None:
@@ -1975,6 +1995,9 @@ def main() -> None:
                 print("Creator exports:", flush=True)
                 for path in creator_exports:
                     print(f"  - {path}", flush=True)
+                if args.open_output:
+                    print("Opening creator exports in Finder...", flush=True)
+                    open_output_location(CREATOR_SINGLE_EXPORT_DIR)
     if args.batch_copy_to is not None:
         copied_batch_files = copy_batch_outputs(edit_dir, args.batch_copy_to)
         if copied_batch_files:
@@ -1985,6 +2008,9 @@ def main() -> None:
         if creator_batch_exports:
             for path in creator_batch_exports:
                 print(f"  creator export: {path}", flush=True)
+            if args.open_output:
+                print("Opening creator exports in Finder...", flush=True)
+                open_output_location(CREATOR_BATCH_EXPORT_DIR)
     if generated_script_path is not None:
         print(f"Generated script path: {generated_script_path}")
     print(f"Branding mode: {'active' if hooks.active else 'inactive'}")

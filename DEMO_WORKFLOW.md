@@ -201,6 +201,7 @@ Expected files:
 - single reel exports use timestamped slug names such as `2026-05-09_travel-is-the-new-freedom_final_social.mp4` and `2026-05-09_travel-is-the-new-freedom_script.json`
 - batch exports use timestamped reel names such as `2026-05-09_reel_001_travel-is-the-new-freedom.mp4`
 - batch manifests are copied to `outputs/batch/batch_manifest.json` and `outputs/batch/batch_manifest.md`
+- `--open-output` asks the demo wrapper to open `outputs/single/` or `outputs/batch/` in Finder on macOS after the render finishes; if Finder is unavailable, it prints the path instead
 
 The script also prints:
 

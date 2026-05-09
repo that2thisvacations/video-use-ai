@@ -160,6 +160,7 @@ Verified caption rendering behavior:
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
 - `outputs/single/` stores timestamped single-reel deliverables and script JSON copies
 - `outputs/batch/` stores timestamped batch reel deliverables plus batch manifests
+- `--open-output` opens the matching creator export folder in Finder on macOS, or prints the path if Finder is unavailable
 - `--travelbuddy-reel` is the recommended daily creator shortcut and still preserves manual overrides
 - `--topics-file` batches multiple reels from a plain text topic list
 - `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` summarize batch runs with probe metadata and per-reel status

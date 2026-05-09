@@ -104,6 +104,8 @@ The transcription helper accepts:
 --tts-provider piper
 --piper-voice en_US-lessac-low
 --piper-data-dir /path/to/piper_data
+--pause-profile tight|natural|dramatic
+--pause-ms 220
 ```
 
 `placeholder` is the default. `piper` is optional and only works when Piper is installed in the current Python environment.
@@ -144,6 +146,7 @@ Verified caption rendering behavior:
 - `cinematic_gold` now produces `edit/preview_branded_916_captioned.mp4`
 - captions are rendered as lightweight Python-generated overlay plates and composited with ffmpeg
 - topic-driven scripts can now provide `script_style`, `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for cleaner rhythm
+- pause timing can be tuned with `pause_profile` and `applied_pause_ms` for more natural narration gaps
 - if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
 - `--topic` produces `edit/generated_script.json` and can feed chunked Piper narration plus caption grouping
@@ -180,6 +183,7 @@ Future content pipeline notes:
 - `travelbuddy_demo.py` writes the selected preset/style/content metadata into `edit/edl.json`
 - script generation now has a deterministic local topic-to-script path in `edit/generated_script.json`
 - Piper can narrate the generated `voice_chunks` when `--topic` is provided, with `voice_text` as fallback
+- Piper can insert configurable silence between chunked narration beats
 - caption rendering prefers `caption_groups` when they are available in the transcript JSON
 - `script_style` captures whether the writing should feel punchy, cinematic, urgent, luxury, or mentor-led
 - the first real preset behavior should stay additive and isolated to `cinematic_916`

@@ -58,7 +58,7 @@ Topic-driven social-ready shortcut:
 
 ```bash
 cd ~/Documents/video-use-ai
-.venv/bin/python3.11 travelbuddy_demo.py --social-ready --tts-provider placeholder --topic "Stop applying. Start building."
+.venv/bin/python3.11 travelbuddy_demo.py --social-ready --tts-provider placeholder --topic "Stop applying. Start building." --pause-profile natural
 ```
 
 Phase A metadata example:
@@ -159,6 +159,8 @@ The script also prints:
 `final_social.mp4` is the convenience alias for the polished social-ready result. It copies the best available 9:16 social export, normally `preview_branded_916_captioned.mp4`.
 
 When `--topic` is provided, the wrapper generates a deterministic topic script and saves it to `edit/generated_script.json`. The `script_style` field records the intended rhythm profile, `voice_chunks` drives chunked Piper narration, `caption_groups` drives the first caption grouping pass, and `voice_text` remains the fallback narration string.
+
+Use `--pause-profile tight|natural|dramatic` to shape the gaps between Piper narration chunks, or `--pause-ms` to override the gap directly. The selected values are written into `edit/generated_script.json` as `pause_profile` and `applied_pause_ms`.
 
 TravelBuddy branding can be tuned with:
 

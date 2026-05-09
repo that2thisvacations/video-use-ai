@@ -19,6 +19,8 @@ videos without introducing AI APIs or changing the render pipeline.
 - Let each main point land as a single beat or a small beat pair.
 - End with a CTA that feels like a finish, not a paragraph.
 - Use deterministic pause hints instead of random timing.
+- Use named pause profiles when the narration needs a tighter, more natural,
+  or more dramatic gap.
 
 ## Social Rhythm Strategy
 
@@ -34,3 +36,5 @@ videos without introducing AI APIs or changing the render pipeline.
 - Add a dedicated caption emphasis layer for key phrases.
 - Introduce smarter chunking for long topics or multi-part hooks.
 - Add optional script reviews for pace before render, still without AI APIs.
+- Add finer-grained pause timing per chunk once the current profiles are
+  visually approved.

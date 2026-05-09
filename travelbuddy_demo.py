@@ -30,6 +30,12 @@ DEFAULT_CAPTION_STYLE = "cinematic_gold"
 DEFAULT_CONTENT_TYPE = "mentor_pitch"
 BRANDING_ROOT = REPO_ROOT / "branding"
 BRANDING_ASSETS = BRANDING_ROOT / "assets"
+PAUSE_PROFILE_DEFAULT = "natural"
+PAUSE_PROFILE_MS = {
+    "tight": 120,
+    "natural": 220,
+    "dramatic": 380,
+}
 
 
 @dataclass(frozen=True)
@@ -77,6 +83,8 @@ def augment_transcript_with_script(transcript_path: Path, script: dict[str, obje
     transcript = json.loads(transcript_path.read_text())
     transcript["voice_chunks"] = script.get("voice_chunks", [])
     transcript["suggested_pause_ms"] = script.get("suggested_pause_ms")
+    transcript["pause_profile"] = script.get("pause_profile")
+    transcript["applied_pause_ms"] = script.get("applied_pause_ms")
     transcript["caption_groups"] = script.get("caption_groups", [])
     transcript["script_style"] = script.get("script_style")
     transcript["generated_script_path"] = str(transcript_path.parent.parent / "generated_script.json")
@@ -236,7 +244,15 @@ def resolve_social_ready_options(args: argparse.Namespace) -> argparse.Namespace
     args.caption_style = args.caption_style or DEFAULT_CAPTION_STYLE
     args.content_type = args.content_type or DEFAULT_CONTENT_TYPE
     args.tts_provider = args.tts_provider or "placeholder"
+    args.pause_profile = args.pause_profile or PAUSE_PROFILE_DEFAULT
     return args
+
+
+def resolve_pause_ms(pause_profile: str, pause_ms: int | None) -> int:
+    if pause_ms is not None and pause_ms >= 0:
+        return int(pause_ms)
+    profile = (pause_profile or PAUSE_PROFILE_DEFAULT).strip().lower()
+    return int(PAUSE_PROFILE_MS.get(profile, PAUSE_PROFILE_MS[PAUSE_PROFILE_DEFAULT]))
 
 
 def preset_dimensions(preset: ExportPreset) -> tuple[int, int]:
@@ -1022,6 +1038,19 @@ def main() -> None:
         help="Optional topic to generate a lightweight script",
     )
     ap.add_argument(
+        "--pause-profile",
+        type=str,
+        default=None,
+        choices=["tight", "natural", "dramatic"],
+        help="Pause profile used between generated narration chunks",
+    )
+    ap.add_argument(
+        "--pause-ms",
+        type=int,
+        default=None,
+        help="Override pause length between generated narration chunks in milliseconds",
+    )
+    ap.add_argument(
         "--tts-provider",
         type=str,
         default=None,
@@ -1069,6 +1098,7 @@ def main() -> None:
         args.caption_style = args.caption_style or DEFAULT_CAPTION_STYLE
         args.content_type = args.content_type or DEFAULT_CONTENT_TYPE
         args.tts_provider = args.tts_provider or "placeholder"
+        args.pause_profile = args.pause_profile or PAUSE_PROFILE_DEFAULT
 
     require_tools(["ffmpeg", "ffprobe"])
     hooks = resolve_branding_hooks(args.brand, args.style)
@@ -1084,6 +1114,9 @@ def main() -> None:
         brand=args.brand,
         topic=args.topic,
     )
+    applied_pause_ms = resolve_pause_ms(args.pause_profile, args.pause_ms)
+    content_metadata.script_stub["pause_profile"] = args.pause_profile
+    content_metadata.script_stub["applied_pause_ms"] = applied_pause_ms
     watermark = WatermarkSettings(
         scale=args.watermark_scale,
         opacity=args.watermark_opacity,
@@ -1129,6 +1162,10 @@ def main() -> None:
             f"{caption_style.name} / content type: {content_metadata.content_type}",
             flush=True,
         )
+        print(
+            f"  narration pause profile: {args.pause_profile} / {applied_pause_ms} ms",
+            flush=True,
+        )
         print(f"  script routing: {content_metadata.script_stub['routing_hint']}", flush=True)
     else:
         print("Branding mode inactive; using default placeholders", flush=True)
@@ -1147,6 +1184,7 @@ def main() -> None:
         print(f"  generated headline: {content_metadata.script_stub.get('headline', '')}", flush=True)
         print(f"  content type: {content_metadata.content_type}", flush=True)
         print(f"  narration length: {len(narration_text or '')} chars", flush=True)
+        print(f"  applied pause: {applied_pause_ms} ms", flush=True)
         print(f"  generated script path: {generated_script_path}", flush=True)
     transcribe_cmd = [
         helper_python(),
@@ -1167,6 +1205,7 @@ def main() -> None:
         transcribe_cmd.extend(["--narration-text", narration_text])
     for chunk in narration_chunks or []:
         transcribe_cmd.extend(["--narration-chunk", chunk])
+    transcribe_cmd.extend(["--pause-profile", args.pause_profile, "--pause-ms", str(applied_pause_ms)])
     run(transcribe_cmd, cwd=REPO_ROOT)
 
     if generated_script_path is not None:
@@ -1232,6 +1271,8 @@ def main() -> None:
             edl.setdefault("metadata", {})["topic"] = args.topic
             edl.setdefault("metadata", {})["voice_chunks"] = content_metadata.script_stub.get("voice_chunks", [])
             edl.setdefault("metadata", {})["caption_groups"] = content_metadata.script_stub.get("caption_groups", [])
+            edl.setdefault("metadata", {})["pause_profile"] = content_metadata.script_stub.get("pause_profile")
+            edl.setdefault("metadata", {})["applied_pause_ms"] = content_metadata.script_stub.get("applied_pause_ms")
         edl_path.write_text(json.dumps(edl, indent=2))
     preview_path = edit_dir / "preview.mp4"
     run(

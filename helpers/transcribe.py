@@ -15,6 +15,7 @@ Usage:
     python helpers/transcribe.py <video_path> --language en
     python helpers/transcribe.py <video_path> --num-speakers 2
     python helpers/transcribe.py <video_path> --tts-provider piper --piper-voice en_US-lessac-low
+    python helpers/transcribe.py <video_path> --pause-profile natural
 """
 
 from __future__ import annotations
@@ -125,6 +126,8 @@ def transcribe_one(
     piper_data_dir: Path | None = None,
     narration_text: str | None = None,
     narration_chunks: list[str] | None = None,
+    pause_profile: str | None = None,
+    pause_ms: int | None = None,
     verbose: bool = True,
 ) -> Path:
     """Transcribe a single video. Returns path to transcript JSON."""
@@ -148,6 +151,8 @@ def transcribe_one(
         piper_data_dir=piper_data_dir,
         narration_text=narration_text,
         narration_chunks=narration_chunks,
+        pause_profile=pause_profile,
+        pause_ms=pause_ms,
         verbose=verbose,
     )
 
@@ -204,6 +209,19 @@ def main() -> None:
         default=None,
         help="Optional narration chunk override used by Piper (repeatable)",
     )
+    ap.add_argument(
+        "--pause-profile",
+        type=str,
+        default="natural",
+        choices=["tight", "natural", "dramatic"],
+        help="Pause profile used by Piper chunk narration (default: natural)",
+    )
+    ap.add_argument(
+        "--pause-ms",
+        type=int,
+        default=None,
+        help="Override pause length between Piper narration chunks in milliseconds",
+    )
     args = ap.parse_args()
 
     video = args.video.resolve()
@@ -221,6 +239,8 @@ def main() -> None:
         piper_data_dir=args.piper_data_dir,
         narration_text=args.narration_text,
         narration_chunks=args.narration_chunk,
+        pause_profile=args.pause_profile,
+        pause_ms=args.pause_ms,
     )
 
 

@@ -89,6 +89,19 @@ def main() -> None:
         default=None,
         help="Optional narration chunk override used by Piper (repeatable)",
     )
+    ap.add_argument(
+        "--pause-profile",
+        type=str,
+        default="natural",
+        choices=["tight", "natural", "dramatic"],
+        help="Pause profile used by Piper chunk narration (default: natural)",
+    )
+    ap.add_argument(
+        "--pause-ms",
+        type=int,
+        default=None,
+        help="Override pause length between Piper narration chunks in milliseconds",
+    )
     args = ap.parse_args()
 
     videos_dir = args.videos_dir.resolve()
@@ -127,6 +140,8 @@ def main() -> None:
                 piper_data_dir=args.piper_data_dir,
                 narration_text=args.narration_text,
                 narration_chunks=args.narration_chunk,
+                pause_profile=args.pause_profile,
+                pause_ms=args.pause_ms,
                 verbose=False,
             ): v
             for v in pending

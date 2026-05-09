@@ -13,6 +13,10 @@ videos without introducing AI APIs or changing the render pipeline.
   `cinematic`, `urgent`, or `luxury`.
 - Each script now records `emphasis_words` so key words can be visually
   highlighted in `cinematic_gold` without changing the caption engine.
+- `cinematic_gold` now also uses a subtle timed pop overlay for emphasized
+  words so the rhythm feels more deliberate without a full animation system.
+- Each script now records `emphasis_pop_ms` so the pop timing stays
+  deterministic and easy to tune.
 
 ## Pacing Strategy
 
@@ -44,6 +48,9 @@ TravelBuddy default:
 - Add a dedicated caption emphasis layer for key phrases.
 - Expand emphasis words into animated emphasis only after the static highlight
   pass is validated.
+- Tune `emphasis_pop_ms` by content type before adding any more motion.
+- Add per-word emphasis timing only if the current pop window still feels too
+  static after review.
 - Introduce smarter chunking for long topics or multi-part hooks.
 - Add optional script reviews for pace before render, still without AI APIs.
 - Add finer-grained pause timing per chunk once the current profiles are

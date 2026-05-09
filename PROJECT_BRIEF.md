@@ -148,6 +148,8 @@ Verified caption rendering behavior:
 - captions are rendered as lightweight Python-generated overlay plates and composited with ffmpeg
 - topic-driven scripts can now provide `script_style`, `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for cleaner rhythm
 - topic-driven scripts also provide `emphasis_words`, and `cinematic_gold` highlights those words with brighter gold and slightly larger type
+- the same `cinematic_gold` path now adds a subtle timed pop window around emphasized words instead of using a heavy animation engine
+- topic-driven scripts also carry an `emphasis_pop_ms` hint so the pop window stays deterministic and lightweight
 - pause timing can be tuned with `pause_profile` and `applied_pause_ms` for more natural narration gaps
 - if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
@@ -190,6 +192,8 @@ Future content pipeline notes:
 - `script_style` captures whether the writing should feel punchy, cinematic, urgent, luxury, or mentor-led
 - `pause_profile` defaults to `natural`; `tight` is for fast news or quick-hit content and `dramatic` is for motivational or emphasis reels
 - `emphasis_words` lets `cinematic_gold` brighten important words without changing the caption engine
+- `emphasis_pop_ms` gives the caption renderer a small deterministic pop duration for those emphasized words
+- the emphasis timing stays lightweight: no GPU, no new service, no full animation stack
 - the first real preset behavior should stay additive and isolated to `cinematic_916`
 - the first caption behavior should stay additive and isolated to `cinematic_gold`
 - the social-ready wrapper should remain additive and should not replace the manual preset path

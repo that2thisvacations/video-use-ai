@@ -155,12 +155,12 @@ SCRIPT_TEMPLATES = {
 }
 
 SCRIPT_STYLE_METADATA = {
-    "mentor_pitch": {"script_style": "mentor", "suggested_pause_ms": 260},
-    "ai_news": {"script_style": "punchy", "suggested_pause_ms": 180},
-    "luxury_travel": {"script_style": "luxury", "suggested_pause_ms": 240},
-    "breaking_news": {"script_style": "urgent", "suggested_pause_ms": 150},
-    "airport_intel": {"script_style": "cinematic", "suggested_pause_ms": 210},
-    "travel_lifestyle": {"script_style": "cinematic", "suggested_pause_ms": 230},
+    "mentor_pitch": {"script_style": "mentor", "suggested_pause_ms": 260, "emphasis_pop_ms": 220},
+    "ai_news": {"script_style": "punchy", "suggested_pause_ms": 180, "emphasis_pop_ms": 150},
+    "luxury_travel": {"script_style": "luxury", "suggested_pause_ms": 240, "emphasis_pop_ms": 180},
+    "breaking_news": {"script_style": "urgent", "suggested_pause_ms": 150, "emphasis_pop_ms": 140},
+    "airport_intel": {"script_style": "cinematic", "suggested_pause_ms": 210, "emphasis_pop_ms": 170},
+    "travel_lifestyle": {"script_style": "cinematic", "suggested_pause_ms": 230, "emphasis_pop_ms": 190},
 }
 
 EMPHASIS_WORD_POOLS = {
@@ -217,6 +217,11 @@ def get_script_style(content_type: str) -> str:
 def get_suggested_pause_ms(content_type: str) -> int:
     content_key = normalize_content_type(content_type)
     return int(SCRIPT_STYLE_METADATA[content_key]["suggested_pause_ms"])
+
+
+def get_emphasis_pop_ms(content_type: str) -> int:
+    content_key = normalize_content_type(content_type)
+    return int(SCRIPT_STYLE_METADATA[content_key]["emphasis_pop_ms"])
 
 
 def extract_topic_keywords(topic: str) -> list[str]:
@@ -388,6 +393,7 @@ def generate_script_stub(
         "caption_style": caption_style,
         "script_style": style_meta["script_style"],
         "routing_hint": routing_hint,
+        "emphasis_pop_ms": style_meta["emphasis_pop_ms"],
         "headline": headline,
         "hook": hook,
         "main_points": main_points,
@@ -403,6 +409,7 @@ def generate_script_stub(
             "route content type into travel-specific script prompts",
             "deterministic voice chunking for social pacing",
             "deterministic emphasis words for caption highlighting",
+            "deterministic emphasis pop timing for cinematic_gold",
             "deterministic template output for local-first workflow",
         ],
     }

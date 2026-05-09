@@ -88,6 +88,7 @@ def augment_transcript_with_script(transcript_path: Path, script: dict[str, obje
     transcript["applied_pause_ms"] = script.get("applied_pause_ms")
     transcript["caption_groups"] = script.get("caption_groups", [])
     transcript["emphasis_words"] = script.get("emphasis_words", [])
+    transcript["emphasis_pop_ms"] = script.get("emphasis_pop_ms")
     transcript["script_style"] = script.get("script_style")
     transcript["generated_script_path"] = str(transcript_path.parent.parent / "generated_script.json")
     transcript_path.write_text(json.dumps(transcript, indent=2))
@@ -293,6 +294,18 @@ def normalize_emphasis_words(words: object) -> set[str]:
     return result
 
 
+def matched_emphasis_words(text: str, emphasis_set: set[str]) -> list[str]:
+    words = [
+        re.sub(r"^[^\w']+|[^\w']+$", "", piece.strip().lower())
+        for piece in text.split()
+    ]
+    matches: list[str] = []
+    for word in words:
+        if word and word in emphasis_set and word not in matches:
+            matches.append(word)
+    return matches
+
+
 def lighten_hex_color(hex_color: str, ratio: float = 0.25) -> tuple[int, int, int, int]:
     value = hex_color.strip().lstrip("#")
     if len(value) != 6:
@@ -447,13 +460,17 @@ def render_caption_overlay(
     preset: ExportPreset,
     out_path: Path,
     emphasis_words: object | None = None,
+    emphasis_boost: bool = False,
 ) -> None:
     from PIL import Image, ImageDraw, ImageFont
 
     font_path = resolve_font_path(style.font_placeholder)
     font_size = int(style.font_size)
-    font = ImageFont.truetype(str(font_path), font_size) if font_path.exists() else ImageFont.load_default()
-    highlight_size = font_size + 6
+    scale_boost = 1.0
+    if emphasis_boost:
+        scale_boost = 1.04
+    font = ImageFont.truetype(str(font_path), int(round(font_size * scale_boost))) if font_path.exists() else ImageFont.load_default()
+    highlight_size = int(round((font_size + 6) * scale_boost))
     highlight_font = ImageFont.truetype(str(font_path), highlight_size) if font_path.exists() else font
     emphasis_set = normalize_emphasis_words(emphasis_words)
 
@@ -468,8 +485,8 @@ def render_caption_overlay(
 
     image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    line_spacing = 10
-    word_spacing = 10
+    line_spacing = 10 if not emphasis_boost else 11
+    word_spacing = 10 if not emphasis_boost else 11
 
     line_layouts: list[dict[str, object]] = []
     for line in lines:
@@ -526,8 +543,10 @@ def render_caption_overlay(
             word_font = segment["font"]
             emphasized = bool(segment["emphasized"])
             word_fill = highlight_fill if emphasized else fill
-            shadow_offset = 4 if emphasized else 3
-            stroke_width = 6 if emphasized else 4
+            if emphasis_boost and emphasized:
+                word_fill = lighten_hex_color(style.emphasis_color, 0.48)
+            shadow_offset = 5 if (emphasis_boost and emphasized) else (4 if emphasized else 3)
+            stroke_width = 7 if (emphasis_boost and emphasized) else (6 if emphasized else 4)
             stroke_fill = (0, 0, 0, 240 if emphasized else 220)
             draw.text(
                 (current_x + shadow_offset, current_y + shadow_offset),
@@ -551,6 +570,58 @@ def render_caption_overlay(
     image.save(out_path)
 
 
+def compute_emphasis_windows(
+    transcript: dict,
+    cue_start: float,
+    cue_end: float,
+    cue_text: str,
+    emphasis_set: set[str],
+    emphasis_pop_ms: int,
+) -> list[tuple[float, float]]:
+    if not emphasis_set:
+        return []
+
+    words = [
+        word
+        for word in transcript.get("words", [])
+        if word.get("type") == "word" and (word.get("text") or "").strip()
+    ]
+    windows: list[tuple[float, float]] = []
+    for word in words:
+        word_start = word.get("start")
+        word_end = word.get("end")
+        if word_start is None or word_end is None:
+            continue
+        if float(word_end) < cue_start or float(word_start) > cue_end:
+            continue
+        cleaned = re.sub(r"^[^\w']+|[^\w']+$", "", str(word.get("text", "")).strip().lower())
+        if cleaned not in emphasis_set:
+            continue
+        pop_seconds = max(0.12, min(0.32, float(emphasis_pop_ms) / 1000.0))
+        start = max(cue_start, float(word_start) - min(0.05, pop_seconds * 0.22))
+        end = min(cue_end, float(word_end) + min(0.09, pop_seconds * 0.38))
+        if end <= start:
+            end = min(cue_end, start + pop_seconds)
+        windows.append((start, end))
+        if len(windows) >= 2:
+            break
+
+    if windows:
+        return windows
+
+    matches = matched_emphasis_words(cue_text, emphasis_set)
+    if not matches:
+        return []
+
+    cue_span = max(0.18, min(0.32, max((cue_end - cue_start) * 0.34, float(emphasis_pop_ms) / 1000.0)))
+    midpoint = cue_start + max(0.08, min((cue_end - cue_start) / 2.0, cue_end - cue_start - 0.08))
+    start = max(cue_start, midpoint - cue_span / 2.0)
+    end = min(cue_end, start + cue_span)
+    if end <= start:
+        end = min(cue_end, start + 0.18)
+    return [(start, end)]
+
+
 def build_caption_overlay_assets(
     transcript: dict,
     style: CaptionStyle,
@@ -566,10 +637,28 @@ def build_caption_overlay_assets(
     asset_dir.mkdir(parents=True, exist_ok=True)
     overlays: list[tuple[float, float, Path]] = []
     emphasis_words = transcript.get("emphasis_words")
+    emphasis_set = normalize_emphasis_words(emphasis_words)
+    emphasis_pop_ms = int(transcript.get("emphasis_pop_ms") or 180)
     for idx, (start, end, text) in enumerate(cues):
         overlay_path = asset_dir / f"caption_{idx:02d}.png"
         render_caption_overlay(text, width, height, style, preset, overlay_path, emphasis_words=emphasis_words)
         overlays.append((start, end, overlay_path))
+        if emphasis_set:
+            for emphasis_idx, (pop_start, pop_end) in enumerate(
+                compute_emphasis_windows(transcript, start, end, text, emphasis_set, emphasis_pop_ms)
+            ):
+                emphasis_path = asset_dir / f"caption_{idx:02d}_emphasis_{emphasis_idx:02d}.png"
+                render_caption_overlay(
+                    text,
+                    width,
+                    height,
+                    style,
+                    preset,
+                    emphasis_path,
+                    emphasis_words=emphasis_words,
+                    emphasis_boost=True,
+                )
+                overlays.append((pop_start, pop_end, emphasis_path))
     return overlays
 
 
@@ -977,6 +1066,8 @@ def build_captioned_vertical_export(
     emphasis_words = transcript.get("emphasis_words")
     if isinstance(emphasis_words, list) and emphasis_words:
         print(f"  emphasis words: {len(emphasis_words)}", flush=True)
+        print("  emphasis timing enabled: subtle timed pop overlays", flush=True)
+        print(f"  emphasis pop hint: {transcript.get('emphasis_pop_ms', 'default')} ms", flush=True)
     try:
         overlays = build_caption_overlay_assets(
             transcript,
@@ -985,6 +1076,8 @@ def build_captioned_vertical_export(
             asset_dir,
             total_duration=vertical_duration,
         )
+        if isinstance(emphasis_words, list) and emphasis_words:
+            print(f"  emphasis render path: {asset_dir}", flush=True)
     except ValueError:
         print("  warning: caption cues unavailable; copying vertical export without captions", flush=True)
         shutil.copy2(vertical_path, out_path)
@@ -1348,6 +1441,7 @@ def main() -> None:
             edl.setdefault("metadata", {})["voice_chunks"] = content_metadata.script_stub.get("voice_chunks", [])
             edl.setdefault("metadata", {})["caption_groups"] = content_metadata.script_stub.get("caption_groups", [])
             edl.setdefault("metadata", {})["emphasis_words"] = content_metadata.script_stub.get("emphasis_words", [])
+            edl.setdefault("metadata", {})["emphasis_pop_ms"] = content_metadata.script_stub.get("emphasis_pop_ms")
             edl.setdefault("metadata", {})["pause_profile"] = content_metadata.script_stub.get("pause_profile")
             edl.setdefault("metadata", {})["applied_pause_ms"] = content_metadata.script_stub.get("applied_pause_ms")
         edl_path.write_text(json.dumps(edl, indent=2))

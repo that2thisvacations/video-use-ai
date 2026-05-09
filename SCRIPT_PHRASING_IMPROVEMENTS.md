@@ -11,6 +11,8 @@ videos without introducing AI APIs or changing the render pipeline.
 - Caption groups are built from those chunks so subtitles break more cleanly.
 - Each script now records a `script_style` value such as `mentor`, `punchy`,
   `cinematic`, `urgent`, or `luxury`.
+- Each script now records `emphasis_words` so key words can be visually
+  highlighted in `cinematic_gold` without changing the caption engine.
 
 ## Pacing Strategy
 
@@ -40,6 +42,8 @@ TravelBuddy default:
 - Add a second pass for topic-specific sentence timing.
 - Expand variation pools with more TravelBuddy brand tones.
 - Add a dedicated caption emphasis layer for key phrases.
+- Expand emphasis words into animated emphasis only after the static highlight
+  pass is validated.
 - Introduce smarter chunking for long topics or multi-part hooks.
 - Add optional script reviews for pace before render, still without AI APIs.
 - Add finer-grained pause timing per chunk once the current profiles are

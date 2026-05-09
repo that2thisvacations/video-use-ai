@@ -87,6 +87,7 @@ This produces:
 
 `preview_branded_916.mp4` is a real 1080x1920 center-cropped export built from the branded preview. The stable 16:9 outputs remain unchanged.
 `preview_branded_916_captioned.mp4` adds the first visible caption rendering pass on top of the vertical export. The current implementation renders caption plates in Python and composites them with ffmpeg overlays, so it stays available even when subtitle video filters are missing from the local ffmpeg build.
+`cinematic_gold` now also highlights deterministic emphasis words from `edit/generated_script.json` with brighter gold and slightly larger type, while preserving the current caption layout.
 
 Watermark tuning example:
 
@@ -148,7 +149,7 @@ Expected files:
 - `edit/final_social.mp4` when `--social-ready` is selected
 - `edit/generated_script.json` when `--topic` is selected
 - `edit/edl.json` includes the selected export preset, caption style, and content-type metadata
-- `edit/generated_script.json` also carries `script_style`, `voice_chunks`, `suggested_pause_ms`, and `caption_groups` for local pacing and subtitle grouping
+- `edit/generated_script.json` also carries `script_style`, `voice_chunks`, `suggested_pause_ms`, `caption_groups`, and `emphasis_words` for local pacing and subtitle grouping
 
 The script also prints:
 
@@ -184,6 +185,7 @@ TravelBuddy branding can be tuned with:
 - Add content-type routing for future AI script generation and caption presets.
 - Add richer topic-to-script templates or a real AI-backed generator later, behind the same `generated_script.json` contract.
 - Add better narration chunk timing, phrasing pools, and caption emphasis once the static rhythm pass is approved.
+- Expand emphasis words into animated treatment only after the static emphasis pass is approved.
 - Expand caption styles into animated subtitle treatments after the static overlay pass is validated.
 - Add an export mode that copies the preview into a named shareable folder.
 

@@ -8,6 +8,7 @@ replaced with a real content model without changing the calling contract.
 from __future__ import annotations
 
 import hashlib
+import re
 from textwrap import shorten
 
 
@@ -162,6 +163,34 @@ SCRIPT_STYLE_METADATA = {
     "travel_lifestyle": {"script_style": "cinematic", "suggested_pause_ms": 230},
 }
 
+EMPHASIS_WORD_POOLS = {
+    "mentor_pitch": ["mentor", "build", "future", "freedom", "income", "travel"],
+    "ai_news": ["ai", "future", "build", "travel", "mentor", "income"],
+    "luxury_travel": ["luxury", "travel", "future", "freedom", "build", "income"],
+    "breaking_news": ["breaking", "travel", "future", "build", "income", "mentor"],
+    "airport_intel": ["travel", "airport", "future", "freedom", "build", "mentor"],
+    "travel_lifestyle": ["travel", "future", "freedom", "build", "mentor", "income"],
+}
+
+EMPHASIS_STOPWORDS = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "your",
+    "this",
+    "that",
+    "from",
+    "into",
+    "about",
+    "stop",
+    "start",
+    "apply",
+    "applying",
+    "build",
+    "building",
+}
+
 
 def normalize_content_type(content_type: str) -> str:
     content_key = content_type.strip().lower()
@@ -188,6 +217,35 @@ def get_script_style(content_type: str) -> str:
 def get_suggested_pause_ms(content_type: str) -> int:
     content_key = normalize_content_type(content_type)
     return int(SCRIPT_STYLE_METADATA[content_key]["suggested_pause_ms"])
+
+
+def extract_topic_keywords(topic: str) -> list[str]:
+    tokens = re.findall(r"[A-Za-z0-9']+", topic.lower())
+    keywords: list[str] = []
+    for token in tokens:
+        cleaned = token.strip("'")
+        if len(cleaned) < 4 or cleaned in EMPHASIS_STOPWORDS:
+            continue
+        if cleaned not in keywords:
+            keywords.append(cleaned)
+    return keywords
+
+
+def build_emphasis_words(topic: str, content_type: str) -> list[str]:
+    content_key = normalize_content_type(content_type)
+    emphasis_words: list[str] = []
+    for candidate in EMPHASIS_WORD_POOLS.get(content_key, []):
+        cleaned = candidate.strip().lower()
+        if cleaned and cleaned not in emphasis_words:
+            emphasis_words.append(cleaned)
+
+    for candidate in extract_topic_keywords(topic):
+        if candidate not in emphasis_words:
+            emphasis_words.append(candidate)
+
+    if not emphasis_words:
+        emphasis_words = ["travel", "future", "build"]
+    return emphasis_words[:8]
 
 
 def stable_choice(options: list[str], *parts: str) -> str:
@@ -321,6 +379,7 @@ def generate_script_stub(
     voice_text = join_voice_chunks(voice_chunks)
     routing_hint = get_routing_hint(content_key)
     style_meta = SCRIPT_STYLE_METADATA[content_key]
+    emphasis_words = build_emphasis_words(topic_text, content_key)
     return {
         "brand": brand.strip().upper() or "TRAVELBUDDY",
         "content_type": content_key,
@@ -336,12 +395,14 @@ def generate_script_stub(
         "voice_chunks": voice_chunks,
         "suggested_pause_ms": style_meta["suggested_pause_ms"],
         "caption_groups": caption_groups,
+        "emphasis_words": emphasis_words,
         "voice_text": shorten(voice_text, width=1200, placeholder=""),
         "notes": [
             "future LLM call site",
             "keep transcript contract unchanged",
             "route content type into travel-specific script prompts",
             "deterministic voice chunking for social pacing",
+            "deterministic emphasis words for caption highlighting",
             "deterministic template output for local-first workflow",
         ],
     }

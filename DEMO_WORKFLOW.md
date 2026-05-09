@@ -91,6 +91,15 @@ cd ~/Documents/video-use-ai
 
 `topics.txt` is plain text, one topic per line. The batch runner creates per-topic
 folders under `edit/batch/reel_001/`, `edit/batch/reel_002/`, and so on.
+It also writes `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md`
+with per-reel status, output paths, and probe metadata when available.
+
+Daily topic file example:
+
+```bash
+cd ~/Documents/video-use-ai
+cp examples/topics_daily.txt topics.txt
+```
 
 Topic-driven social-ready shortcut:
 
@@ -230,6 +239,8 @@ TravelBuddy branding can be tuned with:
 - Expand caption styles into animated subtitle treatments after the static overlay pass is validated.
 - Extend the timed emphasis pop only if the subtle static emphasis still feels too flat.
 - Add an export mode that copies the preview into a named shareable folder.
+- Add batch manifest diffing so review sessions can compare rerenders quickly.
+- Add a daily batch review step that starts from `REEL_BATCH_REVIEW_TEMPLATE.md`.
 
 ## Notes
 

@@ -128,6 +128,8 @@ The local-first architecture keeps provider selection inside `helpers/transcribe
 TravelBuddy uses `--pause-profile natural` as the documented default for daily/social rhythm; use `tight` for fast news or quick-hit content and `dramatic` for motivational or emphasis reels.
 The flagship daily command is `--travelbuddy-reel`, which layers the social-ready stack with Piper narration, `cinematic_916`, `cinematic_gold`, natural pacing, and mentor_pitch routing.
 For creator batching, `--topics-file` turns a plain text list into multiple reel runs and writes each result into `edit/batch/reel_###/`.
+The batch runner also writes `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` so the run can be reviewed after the fact.
+`examples/topics_daily.txt` is the recommended 10-topic starter list for daily batching.
 
 The code looks for provider assets in the repo and in the edit workspace. Do not commit generated audio or temporary model downloads.
 The workflow assumes `ffmpeg` and `ffprobe` are available on `PATH`; the system `ffprobe` binary is fine.
@@ -157,6 +159,8 @@ Verified caption rendering behavior:
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
 - `--travelbuddy-reel` is the recommended daily creator shortcut and still preserves manual overrides
 - `--topics-file` batches multiple reels from a plain text topic list
+- `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` summarize batch runs with probe metadata and per-reel status
+- `examples/topics_daily.txt` is the starter file for daily batch sessions
 - `--topic` produces `edit/generated_script.json` and can feed chunked Piper narration plus caption grouping
 
 ## Placeholder Audio Mode

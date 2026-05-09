@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -151,6 +152,67 @@ def probe_dimensions(video_path: Path) -> tuple[int, int]:
     )
     width_str, height_str = result.stdout.strip().split("x", 1)
     return int(width_str), int(height_str)
+
+
+def probe_media_summary(video_path: Path) -> tuple[float | None, int | None, int | None, str | None, str | None, str | None]:
+    try:
+        duration = probe_duration(video_path)
+    except Exception as exc:
+        return (None, None, None, None, None, f"ffprobe duration failed: {exc}")
+
+    try:
+        width, height = probe_dimensions(video_path)
+    except Exception as exc:
+        return (duration, None, None, None, None, f"ffprobe dimensions failed: {exc}")
+
+    video_codec = None
+    audio_codec = None
+    warning: str | None = None
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=codec_name",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(video_path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        video_codec = result.stdout.strip() or None
+    except Exception as exc:
+        warning = f"ffprobe video codec failed: {exc}"
+
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "a:0",
+                "-show_entries",
+                "stream=codec_name",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(video_path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        audio_codec = result.stdout.strip() or None
+    except Exception as exc:
+        warning = warning or f"ffprobe audio codec failed: {exc}"
+
+    return (duration, width, height, video_codec, audio_codec, warning)
 
 
 def ass_timestamp(seconds: float) -> str:
@@ -1243,6 +1305,62 @@ def copy_batch_outputs(edit_dir: Path, batch_copy_to: Path) -> list[Path]:
     return copied
 
 
+def format_manifest_value(value: object) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, float):
+        return f"{value:.3f}"
+    return str(value)
+
+
+def write_batch_manifest(batch_edit_root: Path, records: list[dict[str, object]]) -> tuple[Path, Path]:
+    json_path = batch_edit_root / "batch_manifest.json"
+    md_path = batch_edit_root / "batch_manifest.md"
+    payload = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "batch_root": str(batch_edit_root),
+        "records": records,
+    }
+    json_path.write_text(json.dumps(payload, indent=2))
+
+    lines = [
+        "# TravelBuddy Batch Manifest",
+        "",
+        f"Created at: {payload['created_at']}",
+        f"Batch root: {payload['batch_root']}",
+        "",
+        "| # | Topic | Slug | Status | Output Dir | Script | Final | Captioned | Duration | Dimensions | Video | Audio | Probe Warning | Error |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for record in records:
+        dims = record.get("dimensions")
+        dims_text = "x".join(str(part) for part in dims) if isinstance(dims, list) and len(dims) == 2 else "null"
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    format_manifest_value(record.get("index")),
+                    format_manifest_value(record.get("topic")),
+                    format_manifest_value(record.get("slug")),
+                    format_manifest_value(record.get("status")),
+                    format_manifest_value(record.get("output_dir")),
+                    format_manifest_value(record.get("generated_script_path")),
+                    format_manifest_value(record.get("final_social_path")),
+                    format_manifest_value(record.get("captioned_path")),
+                    format_manifest_value(record.get("duration")),
+                    dims_text,
+                    format_manifest_value(record.get("video_codec")),
+                    format_manifest_value(record.get("audio_codec")),
+                    format_manifest_value(record.get("probe_warning")),
+                    format_manifest_value(record.get("error")),
+                ]
+            )
+            + " |"
+        )
+    md_path.write_text("\n".join(lines) + "\n")
+    return json_path, md_path
+
+
 def build_reel_subprocess_cmd(args: argparse.Namespace, topic: str, batch_copy_to: Path) -> list[str]:
     cmd = [helper_python(), str(Path(__file__).resolve())]
     cmd.append("--travelbuddy-reel")
@@ -1289,11 +1407,13 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
     successes = 0
     failures = 0
     reel_summaries: list[tuple[str, Path, bool]] = []
+    manifest_records: list[dict[str, object]] = []
     for index, raw_topic in enumerate(topics, start=1):
         topic = raw_topic.strip()
         if not topic:
             continue
         reel_name = f"reel_{index:03d}"
+        topic_slug = slugify_text(topic, fallback=reel_name)
         reel_dir = batch_edit_root / reel_name
         reel_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1308,6 +1428,19 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
         print(f"[batch {index}/{len(topics)}] {reel_name}: {topic}", flush=True)
         result = subprocess.run(cmd, cwd=REPO_ROOT)
         ok = result.returncode == 0
+        final_social_path = reel_dir / "final_social.mp4"
+        captioned_path = reel_dir / "preview_branded_916_captioned.mp4"
+        generated_script_path = reel_dir / "generated_script.json"
+        duration = None
+        width = None
+        height = None
+        video_codec = None
+        audio_codec = None
+        probe_warning = None
+        if final_social_path.exists():
+            duration, width, height, video_codec, audio_codec, probe_warning = probe_media_summary(final_social_path)
+        elif ok:
+            probe_warning = "final_social.mp4 missing from reel output"
         if ok:
             successes += 1
             print(f"  -> {reel_dir}", flush=True)
@@ -1315,7 +1448,27 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
             failures += 1
             print(f"  x failed with exit code {result.returncode}", flush=True)
         reel_summaries.append((topic, reel_dir, ok))
+        manifest_records.append(
+            {
+                "index": index,
+                "topic": topic,
+                "slug": topic_slug,
+                "status": "success" if ok else "failed",
+                "output_dir": str(reel_dir),
+                "generated_script_path": str(generated_script_path) if generated_script_path.exists() else None,
+                "final_social_path": str(final_social_path) if final_social_path.exists() else None,
+                "captioned_path": str(captioned_path) if captioned_path.exists() else None,
+                "duration": duration,
+                "dimensions": [width, height] if width and height else None,
+                "video_codec": video_codec,
+                "audio_codec": audio_codec,
+                "error": None if ok else f"batch subprocess exited with code {result.returncode}",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "probe_warning": probe_warning,
+            }
+        )
 
+    manifest_json_path, manifest_md_path = write_batch_manifest(batch_edit_root, manifest_records)
     print()
     print("==================================================", flush=True)
     print("TRAVELBUDDY BATCH COMPLETE", flush=True)
@@ -1331,6 +1484,8 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
         status = "OK" if ok else "FAILED"
         print(f"  - {reel_dir.relative_to(batch_root)} [{status}] {topic}", flush=True)
     print("", flush=True)
+    print(f"Manifest JSON: {manifest_json_path}", flush=True)
+    print(f"Manifest Markdown: {manifest_md_path}", flush=True)
     print(f"Batch workspace: {batch_root}", flush=True)
     return 0 if failures == 0 else 1
 

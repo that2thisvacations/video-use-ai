@@ -256,6 +256,15 @@ The safest batch pattern is:
 2. Verify one or two reels before scaling the list.
 3. Keep overrides minimal so the preset stack stays consistent.
 4. Expand only after the reel output quality is confirmed.
+5. Review `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` after the run.
+6. Start from `examples/topics_daily.txt` when you want a repeatable daily topic pack.
+
+Batch review workflow:
+
+1. Run a batch from `--topics-file`.
+2. Inspect `edit/batch/batch_manifest.md` for status and probe metadata.
+3. Use `REEL_BATCH_REVIEW_TEMPLATE.md` to score each reel.
+4. Rerender only the weak reels instead of rerunning the whole list.
 
 ### Phase E: Topic-Driven Workflow
 
@@ -271,6 +280,7 @@ Scope:
 - mirror `caption_groups` into the transcript JSON for cleaner caption breaks
 - preserve `script_style` so later writing or automation layers can reuse the pacing intent
 - keep placeholder mode and manual preset selection intact
+- support batch orchestration with `--topics-file` and per-reel manifests
 
 Deliverable:
 
@@ -278,6 +288,7 @@ Deliverable:
 - a stable JSON contract for future AI script generation
 - a small abstraction point for future idea-driven travel prompts
 - cleaner pacing in social renders without changing the core render engine
+- batch review metadata for repeatable daily creator workflows
 
 ### Phase 5: Deployment Path
 

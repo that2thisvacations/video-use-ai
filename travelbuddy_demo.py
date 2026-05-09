@@ -251,6 +251,32 @@ def resolve_social_ready_options(args: argparse.Namespace) -> argparse.Namespace
     return args
 
 
+def resolve_travelbuddy_reel_options(args: argparse.Namespace) -> argparse.Namespace:
+    args.social_ready = True
+    args.brand = args.brand or DEFAULT_BRAND
+    args.style = args.style or DEFAULT_STYLE
+    args.export_preset = args.export_preset or DEFAULT_EXPORT_PRESET
+    args.caption_style = args.caption_style or DEFAULT_CAPTION_STYLE
+    args.content_type = args.content_type or DEFAULT_CONTENT_TYPE
+    args.tts_provider = args.tts_provider or "piper"
+    args.pause_profile = args.pause_profile or PAUSE_PROFILE_DEFAULT
+    args.piper_voice = args.piper_voice or "en_US-lessac-low"
+    return args
+
+
+def resolve_travelbuddy_reel_options(args: argparse.Namespace) -> argparse.Namespace:
+    args.social_ready = True
+    args.brand = args.brand or DEFAULT_BRAND
+    args.style = args.style or DEFAULT_STYLE
+    args.export_preset = args.export_preset or DEFAULT_EXPORT_PRESET
+    args.caption_style = args.caption_style or DEFAULT_CAPTION_STYLE
+    args.content_type = args.content_type or DEFAULT_CONTENT_TYPE
+    args.tts_provider = args.tts_provider or "piper"
+    args.pause_profile = args.pause_profile or PAUSE_PROFILE_DEFAULT
+    args.piper_voice = args.piper_voice or "en_US-lessac-low"
+    return args
+
+
 def resolve_pause_ms(pause_profile: str, pause_ms: int | None) -> int:
     if pause_ms is not None and pause_ms >= 0:
         return int(pause_ms)
@@ -1172,8 +1198,33 @@ def print_social_ready_banner(final_path: Path, preset: ExportPreset, caption_st
     print("==================================================", flush=True)
 
 
+def print_travelbuddy_reel_banner(topic: str, final_path: Path) -> None:
+    print()
+    print("==================================================", flush=True)
+    print("TRAVELBUDDY REEL READY", flush=True)
+    print("==================================================", flush=True)
+    print("Topic:", flush=True)
+    print(topic or "Untitled idea", flush=True)
+    print("", flush=True)
+    print("Final Output:", flush=True)
+    print(f"edit/{final_path.name}", flush=True)
+    print("", flush=True)
+    print("Preset Stack:", flush=True)
+    print("- cinematic_916", flush=True)
+    print("- cinematic_gold", flush=True)
+    print(f"- {PAUSE_PROFILE_DEFAULT} pacing", flush=True)
+    print("- Piper narration", flush=True)
+    print("", flush=True)
+    print("==================================================", flush=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run the TravelBuddy placeholder demo workflow")
+    ap.add_argument(
+        "--travelbuddy-reel",
+        action="store_true",
+        help="Enable the flagship TravelBuddy reel preset stack",
+    )
     ap.add_argument(
         "--social-ready",
         action="store_true",
@@ -1258,6 +1309,8 @@ def main() -> None:
     )
     args = ap.parse_args()
 
+    if args.travelbuddy_reel:
+        args = resolve_travelbuddy_reel_options(args)
     if args.social_ready:
         args = resolve_social_ready_options(args)
     else:
@@ -1336,6 +1389,8 @@ def main() -> None:
             flush=True,
         )
         print(f"  script routing: {content_metadata.script_stub['routing_hint']}", flush=True)
+        if args.travelbuddy_reel:
+            print("  flagship reel preset: enabled", flush=True)
     else:
         print("Branding mode inactive; using default placeholders", flush=True)
     generated_script_path: Path | None = None
@@ -1375,7 +1430,14 @@ def main() -> None:
     for chunk in narration_chunks or []:
         transcribe_cmd.extend(["--narration-chunk", chunk])
     transcribe_cmd.extend(["--pause-profile", args.pause_profile, "--pause-ms", str(applied_pause_ms)])
-    run(transcribe_cmd, cwd=REPO_ROOT)
+    try:
+        run(transcribe_cmd, cwd=REPO_ROOT)
+    except subprocess.CalledProcessError as exc:
+        if args.tts_provider == "piper":
+            print("Piper narration failed. Install guidance:", flush=True)
+            print("  python3.11 -m pip install piper-tts", flush=True)
+            print("  python3.11 -m piper.download_voices en_US-lessac-low --data-dir ./models/piper", flush=True)
+        raise SystemExit(exc.returncode) from exc
 
     if generated_script_path is not None:
         transcript_path = edit_dir / "transcripts" / f"{Path(source_name).stem}.json"
@@ -1496,6 +1558,8 @@ def main() -> None:
                                 caption_style,
                                 args.tts_provider,
                             )
+                            if args.travelbuddy_reel:
+                                print_travelbuddy_reel_banner(args.topic or "Untitled idea", final_social_path)
         else:
             print("Branding hooks were present but no branded export was generated", flush=True)
     else:

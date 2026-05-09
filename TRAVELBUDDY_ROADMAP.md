@@ -200,6 +200,7 @@ Deliverable:
 - a single entrypoint for common TravelBuddy workflows
 - easier onboarding for non-expert users
 - a final social export alias such as `edit/final_social.mp4`
+- a flagship daily reel command such as `--travelbuddy-reel --topic "Travel is the new freedom."`
 
 ### Phase A: Social Media Engine Metadata
 
@@ -222,6 +223,21 @@ Deliverable:
 The simplified social-ready wrapper should stay above this layer. It can
 select the current best preset set, generate `preview_branded_916_captioned.mp4`,
 and copy it to `final_social.mp4` without changing how presets are represented.
+
+## Recommended Daily Creator Flow
+
+Use `--travelbuddy-reel` as the one-command daily path when the goal is a
+polished, social-ready TravelBuddy output. It should default to:
+
+- `--social-ready`
+- `--tts-provider piper`
+- `--piper-voice en_US-lessac-low`
+- `--export-preset cinematic_916`
+- `--caption-style cinematic_gold`
+- `--pause-profile natural`
+- `--content-type mentor_pitch`
+
+Then override only the pieces that need to change for a specific reel.
 
 ### Phase E: Topic-Driven Workflow
 

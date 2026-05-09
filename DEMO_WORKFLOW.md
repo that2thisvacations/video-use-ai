@@ -2,6 +2,27 @@
 
 `travelbuddy_demo.py` is a thin orchestration wrapper around the existing verified local workflow.
 
+## Flagship Reel Command
+
+This is the recommended daily TravelBuddy creator command:
+
+```bash
+cd ~/Documents/video-use-ai
+./.venv/bin/python3.11 travelbuddy_demo.py --travelbuddy-reel --topic "Travel is the new freedom."
+```
+
+It expands to the current TravelBuddy production stack:
+
+- `--social-ready`
+- `--tts-provider piper`
+- `--piper-voice en_US-lessac-low`
+- `--export-preset cinematic_916`
+- `--caption-style cinematic_gold`
+- `--pause-profile natural`
+- `--content-type mentor_pitch`
+
+Manual overrides still win when those flags are passed explicitly.
+
 ## Exact Command
 
 Run from the repo root:
@@ -52,6 +73,13 @@ With Piper:
 ```bash
 cd ~/Documents/video-use-ai
 .venv/bin/python3.11 travelbuddy_demo.py --social-ready --tts-provider piper --piper-voice en_US-lessac-low --piper-data-dir ./models/piper
+```
+
+TravelBuddy reel shortcut:
+
+```bash
+cd ~/Documents/video-use-ai
+./.venv/bin/python3.11 travelbuddy_demo.py --travelbuddy-reel --topic "Travel is the new freedom."
 ```
 
 Topic-driven social-ready shortcut:
@@ -158,6 +186,7 @@ The script also prints:
 - generated files
 
 `final_social.mp4` is the convenience alias for the polished social-ready result. It copies the best available 9:16 social export, normally `preview_branded_916_captioned.mp4`.
+When `--travelbuddy-reel` is selected, the script prints a compact reel-ready banner and still writes the same `final_social.mp4` alias.
 
 When `--topic` is provided, the wrapper generates a deterministic topic script and saves it to `edit/generated_script.json`. The `script_style` field records the intended rhythm profile, `voice_chunks` drives chunked Piper narration, `caption_groups` drives the first caption grouping pass, and `voice_text` remains the fallback narration string.
 
@@ -174,6 +203,7 @@ TravelBuddy branding can be tuned with:
 - `--watermark-scale`
 - `--watermark-opacity`
 - `--watermark-margin`
+- `--travelbuddy-reel`
 
 ## Future Extension Ideas
 

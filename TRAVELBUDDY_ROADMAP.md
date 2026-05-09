@@ -285,6 +285,7 @@ Scope:
 - preserve `script_style` so later writing or automation layers can reuse the pacing intent
 - keep placeholder mode and manual preset selection intact
 - support batch orchestration with `--topics-file` and per-reel manifests
+- add a thin `./travelbuddy` creator wrapper that forwards to the demo script with `--travelbuddy-reel` and `--open-output`
 
 Deliverable:
 
@@ -293,6 +294,7 @@ Deliverable:
 - a small abstraction point for future idea-driven travel prompts
 - cleaner pacing in social renders without changing the core render engine
 - batch review metadata for repeatable daily creator workflows
+- a creator-facing shell shortcut for fast daily reel generation
 
 ### Phase 5: Deployment Path
 

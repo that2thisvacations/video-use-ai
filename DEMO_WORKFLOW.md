@@ -23,6 +23,18 @@ It expands to the current TravelBuddy production stack:
 
 Manual overrides still win when those flags are passed explicitly.
 
+## Creator CLI Shortcut
+
+For day-to-day use, the repo includes a thin `./travelbuddy` wrapper:
+
+```bash
+cd ~/Documents/video-use-ai
+./travelbuddy reel "Travel is the new freedom."
+./travelbuddy batch examples/topics_daily.txt
+```
+
+The wrapper forwards extra args to `travelbuddy_demo.py`, adds `--travelbuddy-reel` and `--open-output`, and prints a creator-mode banner before launching the render.
+
 ## Exact Command
 
 Run from the repo root:

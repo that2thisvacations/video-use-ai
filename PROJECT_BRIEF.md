@@ -131,6 +131,8 @@ For creator batching, `--topics-file` turns a plain text list into multiple reel
 The batch runner also writes `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` so the run can be reviewed after the fact.
 `examples/topics_daily.txt` is the recommended 10-topic starter list for daily batching.
 Creator-facing copies are also exported to `outputs/single/` for single reels and `outputs/batch/` for batch reels so the polished deliverables are easy to find after the run.
+The repo also includes a thin `./travelbuddy` wrapper for creator use: `./travelbuddy reel "<topic>"` and `./travelbuddy batch examples/topics_daily.txt`.
+It adds the TravelBuddy reel preset and `--open-output` automatically, while still forwarding extra args for manual overrides.
 
 The code looks for provider assets in the repo and in the edit workspace. Do not commit generated audio or temporary model downloads.
 The workflow assumes `ffmpeg` and `ffprobe` are available on `PATH`; the system `ffprobe` binary is fine.
@@ -162,6 +164,7 @@ Verified caption rendering behavior:
 - `outputs/batch/` stores timestamped batch reel deliverables plus batch manifests
 - `--open-output` opens the matching creator export folder in Finder on macOS, or prints the path if Finder is unavailable
 - `--travelbuddy-reel` is the recommended daily creator shortcut and still preserves manual overrides
+- `./travelbuddy` is the fastest creator-facing entrypoint for single reels and batch runs
 - `--topics-file` batches multiple reels from a plain text topic list
 - `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` summarize batch runs with probe metadata and per-reel status
 - `examples/topics_daily.txt` is the starter file for daily batch sessions

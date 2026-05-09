@@ -125,6 +125,7 @@ Model location convention:
 ```
 
 The local-first architecture keeps provider selection inside `helpers/transcribe.py` and provider behavior inside `helpers/tts_providers/`, so future local engines can be added without changing the transcript contract.
+TravelBuddy uses `--pause-profile natural` as the documented default for daily/social rhythm; use `tight` for fast news or quick-hit content and `dramatic` for motivational or emphasis reels.
 
 The code looks for provider assets in the repo and in the edit workspace. Do not commit generated audio or temporary model downloads.
 The workflow assumes `ffmpeg` and `ffprobe` are available on `PATH`; the system `ffprobe` binary is fine.
@@ -186,6 +187,7 @@ Future content pipeline notes:
 - Piper can insert configurable silence between chunked narration beats
 - caption rendering prefers `caption_groups` when they are available in the transcript JSON
 - `script_style` captures whether the writing should feel punchy, cinematic, urgent, luxury, or mentor-led
+- `pause_profile` defaults to `natural`; `tight` is for fast news or quick-hit content and `dramatic` is for motivational or emphasis reels
 - the first real preset behavior should stay additive and isolated to `cinematic_916`
 - the first caption behavior should stay additive and isolated to `cinematic_gold`
 - the social-ready wrapper should remain additive and should not replace the manual preset path

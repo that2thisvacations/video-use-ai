@@ -45,6 +45,12 @@ Reason:
 - It stays closer to the current social-ready rhythm.
 - It is the safer baseline for most TravelBuddy topic videos.
 
+TravelBuddy profile guide:
+
+- `natural`: default daily/social rhythm
+- `tight`: fast news or quick-hit content
+- `dramatic`: motivational or emphasis reels
+
 ## Best Use Case By Profile
 
 - `tight`: fastest pacing, utility-style updates, high-density content

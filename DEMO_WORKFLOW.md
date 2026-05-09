@@ -160,7 +160,13 @@ The script also prints:
 
 When `--topic` is provided, the wrapper generates a deterministic topic script and saves it to `edit/generated_script.json`. The `script_style` field records the intended rhythm profile, `voice_chunks` drives chunked Piper narration, `caption_groups` drives the first caption grouping pass, and `voice_text` remains the fallback narration string.
 
-Use `--pause-profile tight|natural|dramatic` to shape the gaps between Piper narration chunks, or `--pause-ms` to override the gap directly. The selected values are written into `edit/generated_script.json` as `pause_profile` and `applied_pause_ms`.
+`--pause-profile natural` is the TravelBuddy default. Use `--pause-profile tight|natural|dramatic` to shape the gaps between Piper narration chunks, or `--pause-ms` to override the gap directly. The selected values are written into `edit/generated_script.json` as `pause_profile` and `applied_pause_ms`.
+
+Pause profile guidance:
+
+- `tight`: fast news or quick-hit content
+- `natural`: default daily/social rhythm
+- `dramatic`: motivational or emphasis reels
 
 TravelBuddy branding can be tuned with:
 

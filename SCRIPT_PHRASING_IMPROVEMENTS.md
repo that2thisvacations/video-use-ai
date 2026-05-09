@@ -22,6 +22,12 @@ videos without introducing AI APIs or changing the render pipeline.
 - Use named pause profiles when the narration needs a tighter, more natural,
   or more dramatic gap.
 
+TravelBuddy default:
+
+- `natural`: default daily/social rhythm
+- `tight`: fast news or quick-hit content
+- `dramatic`: motivational or emphasis reels
+
 ## Social Rhythm Strategy
 
 - Favor direct verbs and short clauses.

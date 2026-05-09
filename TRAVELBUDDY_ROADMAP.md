@@ -239,6 +239,24 @@ polished, social-ready TravelBuddy output. It should default to:
 
 Then override only the pieces that need to change for a specific reel.
 
+## Batch Creator Flow
+
+Use `--topics-file topics.txt` when you want several reels from one session.
+Each non-empty line becomes a reel and lands in:
+
+```text
+edit/batch/reel_001/
+edit/batch/reel_002/
+edit/batch/reel_003/
+```
+
+The safest batch pattern is:
+
+1. Start with a short topic file.
+2. Verify one or two reels before scaling the list.
+3. Keep overrides minimal so the preset stack stays consistent.
+4. Expand only after the reel output quality is confirmed.
+
 ### Phase E: Topic-Driven Workflow
 
 Goal:

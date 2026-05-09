@@ -82,6 +82,16 @@ cd ~/Documents/video-use-ai
 ./.venv/bin/python3.11 travelbuddy_demo.py --travelbuddy-reel --topic "Travel is the new freedom."
 ```
 
+Batch reel workflow:
+
+```bash
+cd ~/Documents/video-use-ai
+./.venv/bin/python3.11 travelbuddy_demo.py --travelbuddy-reel --topics-file topics.txt
+```
+
+`topics.txt` is plain text, one topic per line. The batch runner creates per-topic
+folders under `edit/batch/reel_001/`, `edit/batch/reel_002/`, and so on.
+
 Topic-driven social-ready shortcut:
 
 ```bash
@@ -204,6 +214,7 @@ TravelBuddy branding can be tuned with:
 - `--watermark-opacity`
 - `--watermark-margin`
 - `--travelbuddy-reel`
+- `--topics-file`
 
 ## Future Extension Ideas
 

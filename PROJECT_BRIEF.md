@@ -127,6 +127,7 @@ Model location convention:
 The local-first architecture keeps provider selection inside `helpers/transcribe.py` and provider behavior inside `helpers/tts_providers/`, so future local engines can be added without changing the transcript contract.
 TravelBuddy uses `--pause-profile natural` as the documented default for daily/social rhythm; use `tight` for fast news or quick-hit content and `dramatic` for motivational or emphasis reels.
 The flagship daily command is `--travelbuddy-reel`, which layers the social-ready stack with Piper narration, `cinematic_916`, `cinematic_gold`, natural pacing, and mentor_pitch routing.
+For creator batching, `--topics-file` turns a plain text list into multiple reel runs and writes each result into `edit/batch/reel_###/`.
 
 The code looks for provider assets in the repo and in the edit workspace. Do not commit generated audio or temporary model downloads.
 The workflow assumes `ffmpeg` and `ffprobe` are available on `PATH`; the system `ffprobe` binary is fine.
@@ -155,6 +156,7 @@ Verified caption rendering behavior:
 - if transcript JSON is missing or incomplete, the pipeline copies the vertical export forward instead of failing
 - `--social-ready` produces `edit/final_social.mp4` as a convenience alias for the polished vertical output
 - `--travelbuddy-reel` is the recommended daily creator shortcut and still preserves manual overrides
+- `--topics-file` batches multiple reels from a plain text topic list
 - `--topic` produces `edit/generated_script.json` and can feed chunked Piper narration plus caption grouping
 
 ## Placeholder Audio Mode

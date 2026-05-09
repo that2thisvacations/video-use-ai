@@ -264,6 +264,14 @@ def resolve_travelbuddy_reel_options(args: argparse.Namespace) -> argparse.Names
     return args
 
 
+def slugify_text(text: str, *, fallback: str = "item", max_len: int = 48) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "-", text.strip().lower())
+    cleaned = re.sub(r"-+", "-", cleaned).strip("-")
+    if not cleaned:
+        cleaned = fallback
+    return cleaned[:max_len].strip("-") or fallback
+
+
 def resolve_travelbuddy_reel_options(args: argparse.Namespace) -> argparse.Namespace:
     args.social_ready = True
     args.brand = args.brand or DEFAULT_BRAND
@@ -1218,6 +1226,115 @@ def print_travelbuddy_reel_banner(topic: str, final_path: Path) -> None:
     print("==================================================", flush=True)
 
 
+def copy_batch_outputs(edit_dir: Path, batch_copy_to: Path) -> list[Path]:
+    batch_copy_to.mkdir(parents=True, exist_ok=True)
+    copied: list[Path] = []
+    for name in [
+        "generated_script.json",
+        "preview_branded_916_captioned.mp4",
+        "final_social.mp4",
+    ]:
+        source = edit_dir / name
+        if not source.exists():
+            continue
+        target = batch_copy_to / name
+        shutil.copy2(source, target)
+        copied.append(target)
+    return copied
+
+
+def build_reel_subprocess_cmd(args: argparse.Namespace, topic: str, batch_copy_to: Path) -> list[str]:
+    cmd = [helper_python(), str(Path(__file__).resolve())]
+    cmd.append("--travelbuddy-reel")
+    cmd.extend(["--topic", topic])
+    if args.input is not None:
+        cmd.extend(["--input", str(args.input)])
+    if args.brand is not None:
+        cmd.extend(["--brand", args.brand])
+    if args.style is not None:
+        cmd.extend(["--style", args.style])
+    if args.export_preset is not None:
+        cmd.extend(["--export-preset", args.export_preset])
+    if args.caption_style is not None:
+        cmd.extend(["--caption-style", args.caption_style])
+    if args.content_type is not None:
+        cmd.extend(["--content-type", args.content_type])
+    if args.pause_profile is not None:
+        cmd.extend(["--pause-profile", args.pause_profile])
+    if args.pause_ms is not None:
+        cmd.extend(["--pause-ms", str(args.pause_ms)])
+    if args.tts_provider is not None:
+        cmd.extend(["--tts-provider", args.tts_provider])
+    if args.piper_voice is not None:
+        cmd.extend(["--piper-voice", args.piper_voice])
+    if args.piper_data_dir is not None:
+        cmd.extend(["--piper-data-dir", str(args.piper_data_dir)])
+    if args.watermark_scale is not None:
+        cmd.extend(["--watermark-scale", str(args.watermark_scale)])
+    if args.watermark_opacity is not None:
+        cmd.extend(["--watermark-opacity", str(args.watermark_opacity)])
+    if args.watermark_margin is not None:
+        cmd.extend(["--watermark-margin", str(args.watermark_margin)])
+    cmd.extend(["--batch-copy-to", str(batch_copy_to)])
+    return cmd
+
+
+def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
+    batch_root = Path(tempfile.mkdtemp(prefix=f"travelbuddy_batch_{slugify_text(' '.join(topics[:2]) or 'topics')}_")).resolve()
+    batch_edit_root = batch_root / "edit" / "batch"
+    shared_piper_data_dir = batch_root / "shared" / "piper_data"
+    batch_edit_root.mkdir(parents=True, exist_ok=True)
+    shared_piper_data_dir.mkdir(parents=True, exist_ok=True)
+
+    successes = 0
+    failures = 0
+    reel_summaries: list[tuple[str, Path, bool]] = []
+    for index, raw_topic in enumerate(topics, start=1):
+        topic = raw_topic.strip()
+        if not topic:
+            continue
+        reel_name = f"reel_{index:03d}"
+        reel_dir = batch_edit_root / reel_name
+        reel_dir.mkdir(parents=True, exist_ok=True)
+
+        topic_args = argparse.Namespace(**vars(args))
+        topic_args.topic = topic
+        topic_args.social_ready = True
+        topic_args.travelbuddy_reel = True
+        topic_args.tts_provider = "piper"
+        if topic_args.piper_data_dir is None:
+            topic_args.piper_data_dir = shared_piper_data_dir
+        cmd = build_reel_subprocess_cmd(topic_args, topic, reel_dir)
+        print(f"[batch {index}/{len(topics)}] {reel_name}: {topic}", flush=True)
+        result = subprocess.run(cmd, cwd=REPO_ROOT)
+        ok = result.returncode == 0
+        if ok:
+            successes += 1
+            print(f"  -> {reel_dir}", flush=True)
+        else:
+            failures += 1
+            print(f"  x failed with exit code {result.returncode}", flush=True)
+        reel_summaries.append((topic, reel_dir, ok))
+
+    print()
+    print("==================================================", flush=True)
+    print("TRAVELBUDDY BATCH COMPLETE", flush=True)
+    print("==================================================", flush=True)
+    print(f"Topics Processed: {len([t for t in topics if t.strip()])}", flush=True)
+    print(f"Successful Renders: {successes}", flush=True)
+    print(f"Failed Renders: {failures}", flush=True)
+    print("", flush=True)
+    print("Outputs:", flush=True)
+    print("edit/batch/", flush=True)
+    print("", flush=True)
+    for topic, reel_dir, ok in reel_summaries:
+        status = "OK" if ok else "FAILED"
+        print(f"  - {reel_dir.relative_to(batch_root)} [{status}] {topic}", flush=True)
+    print("", flush=True)
+    print(f"Batch workspace: {batch_root}", flush=True)
+    return 0 if failures == 0 else 1
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run the TravelBuddy placeholder demo workflow")
     ap.add_argument(
@@ -1250,6 +1367,12 @@ def main() -> None:
         type=str,
         default=None,
         help="Content type metadata name (default: mentor_pitch)",
+    )
+    ap.add_argument(
+        "--topics-file",
+        type=Path,
+        default=None,
+        help="Plain text file with one topic per line for batch reel generation",
     )
     ap.add_argument(
         "--topic",
@@ -1307,7 +1430,24 @@ def main() -> None:
         default=32,
         help="TravelBuddy watermark margin in pixels",
     )
+    ap.add_argument(
+        "--batch-copy-to",
+        type=Path,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
     args = ap.parse_args()
+
+    if args.topics_file is not None:
+        if args.topic:
+            raise SystemExit("--topics-file cannot be combined with --topic")
+        topics_path = args.topics_file.resolve()
+        if not topics_path.exists():
+            raise SystemExit(f"topics file not found: {topics_path}")
+        topics = [line.strip() for line in topics_path.read_text().splitlines() if line.strip()]
+        if not topics:
+            raise SystemExit(f"no topics found in {topics_path}")
+        raise SystemExit(run_topic_batch(args, topics))
 
     if args.travelbuddy_reel:
         args = resolve_travelbuddy_reel_options(args)
@@ -1576,6 +1716,12 @@ def main() -> None:
         final_social_path = edit_dir / "final_social.mp4"
         if final_social_path.exists():
             print(f"Final social video path: {final_social_path}")
+    if args.batch_copy_to is not None:
+        copied_batch_files = copy_batch_outputs(edit_dir, args.batch_copy_to)
+        if copied_batch_files:
+            print(f"Batch output path: {args.batch_copy_to}", flush=True)
+            for path in copied_batch_files:
+                print(f"  batch copy: {path}", flush=True)
     if generated_script_path is not None:
         print(f"Generated script path: {generated_script_path}")
     print(f"Branding mode: {'active' if hooks.active else 'inactive'}")

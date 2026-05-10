@@ -15,6 +15,7 @@ Examples:
   ./travelbuddy reel "Travel is the new freedom."
   ./travelbuddy reel "Travel is the new freedom." --pause-profile dramatic
   ./travelbuddy reel "AI is replacing average marketing." --mode ai_marketing
+  ./travelbuddy reel "AI is replacing average marketing." --seedance-payload-only
   ./travelbuddy batch examples/topics_daily.txt
   ./travelbuddy batch examples/topics_daily.txt --pause-profile dramatic
   ./travelbuddy batch examples/topics_daily.txt --mode motivational

@@ -21,6 +21,7 @@ from pathlib import Path
 from helpers.caption_styles import CaptionStyle, get_caption_style
 from helpers.export_presets import ExportPreset, get_export_preset
 from helpers.script_engine import generate_script_stub, get_mode_profile, get_routing_hint, normalize_content_type
+from helpers.seedance_payload import build_seedance_payload
 from helpers.seedance_config import (
     DEFAULT_ASPECT_RATIO,
     DEFAULT_DURATION_SECONDS,
@@ -94,6 +95,41 @@ def write_generated_script(edit_dir: Path, script: dict[str, object]) -> Path:
     out_path = edit_dir / "generated_script.json"
     out_path.write_text(json.dumps(script, indent=2))
     return out_path
+
+
+def write_seedance_payload(edit_dir: Path, payload: dict[str, object]) -> Path:
+    out_path = edit_dir / "seedance_payload.json"
+    out_path.write_text(json.dumps(payload, indent=2))
+    return out_path
+
+
+def build_seedance_artifacts(
+    edit_dir: Path,
+    topic: str | None,
+    content_metadata: DemoContentMetadata,
+    args: argparse.Namespace,
+) -> tuple[Path, Path]:
+    topic_text = (
+        topic
+        or str(content_metadata.script_stub.get("topic"))
+        or str(content_metadata.script_stub.get("headline"))
+        or "Untitled idea"
+    )
+    payload = build_seedance_payload(
+        topic_text,
+        content_metadata.script_stub,
+        args.mode,
+        int(args.duration),
+        str(args.resolution),
+        str(args.aspect_ratio),
+        str(content_metadata.script_stub.get("pacing_profile") or args.pause_profile or PAUSE_PROFILE_DEFAULT),
+        content_metadata.caption_style.name,
+        content_metadata.export_preset.name,
+    )
+    payload_path = write_seedance_payload(edit_dir, payload)
+    content_metadata.script_stub["seedance_payload_path"] = str(payload_path)
+    generated_script_path = write_generated_script(edit_dir, content_metadata.script_stub)
+    return generated_script_path, payload_path
 
 
 def augment_transcript_with_script(transcript_path: Path, script: dict[str, object]) -> None:
@@ -456,6 +492,80 @@ def resolve_pause_ms(pause_profile: str, pause_ms: int | None) -> int:
         return int(pause_ms)
     profile = (pause_profile or PAUSE_PROFILE_DEFAULT).strip().lower()
     return int(PAUSE_PROFILE_MS.get(profile, PAUSE_PROFILE_MS[PAUSE_PROFILE_DEFAULT]))
+
+
+def print_seedance_payload_ready_banner(
+    topic: str,
+    payload_path: Path,
+    generated_script_path: Path,
+    seedance_profile: dict[str, object],
+) -> None:
+    print()
+    print("==================================================", flush=True)
+    print("SEEDANCE PAYLOAD READY", flush=True)
+    print("==================================================", flush=True)
+    print(f"Topic:\n{topic}", flush=True)
+    print("", flush=True)
+    print(f"Payload:\n{payload_path}", flush=True)
+    print(f"Generated Script:\n{generated_script_path}", flush=True)
+    print("", flush=True)
+    print("Seedance Config:", flush=True)
+    print(
+        "  "
+        f"{seedance_profile.get('duration_seconds')}s / "
+        f"{seedance_profile.get('resolution')} / "
+        f"{seedance_profile.get('aspect_ratio')}",
+        flush=True,
+    )
+    print(
+        "  "
+        f"model={seedance_profile.get('model')} / "
+        f"generation_mode={seedance_profile.get('generation_mode')} / "
+        f"output_intent={seedance_profile.get('output_intent')}",
+        flush=True,
+    )
+    print("", flush=True)
+    print("Local rendering skipped.", flush=True)
+    print("==================================================", flush=True)
+
+
+def print_seedance_payload_skip_banner(topic: str, payload_path: Path, generated_script_path: Path) -> None:
+    print()
+    print("==================================================", flush=True)
+    print("SEEDANCE PAYLOAD ONLY READY", flush=True)
+    print("==================================================", flush=True)
+    print(f"Topic:\n{topic}", flush=True)
+    print("", flush=True)
+    print(f"Payload:\n{payload_path}", flush=True)
+    print(f"Generated Script:\n{generated_script_path}", flush=True)
+    print("", flush=True)
+    print("Local render pipeline skipped by --seedance-payload-only", flush=True)
+    print("==================================================", flush=True)
+
+
+def print_seedance_payload_batch_banner(
+    processed: int,
+    batch_root: Path,
+    batch_edit_root: Path,
+    manifest_json_path: Path,
+    manifest_md_path: Path,
+) -> None:
+    print()
+    print("==================================================", flush=True)
+    print("SEEDANCE PAYLOAD BATCH COMPLETE", flush=True)
+    print("==================================================", flush=True)
+    print(f"Topics Processed: {processed}", flush=True)
+    print("Successful Payloads: {0}".format(processed), flush=True)
+    print("Failed Payloads: 0", flush=True)
+    print("", flush=True)
+    print("Outputs:", flush=True)
+    print("edit/batch/", flush=True)
+    print("", flush=True)
+    print(f"Batch workspace: {batch_root}", flush=True)
+    print(f"Batch edit root: {batch_edit_root}", flush=True)
+    print(f"Manifest JSON: {manifest_json_path}", flush=True)
+    print(f"Manifest Markdown: {manifest_md_path}", flush=True)
+    print("==================================================", flush=True)
 
 
 def preset_dimensions(preset: ExportPreset) -> tuple[int, int]:
@@ -1439,6 +1549,7 @@ def copy_batch_outputs(edit_dir: Path, batch_copy_to: Path) -> list[Path]:
     copied: list[Path] = []
     for name in [
         "generated_script.json",
+        "seedance_payload.json",
         "preview_branded_916_captioned.mp4",
         "final_social.mp4",
     ]:
@@ -1463,6 +1574,7 @@ def write_batch_manifest(
     batch_edit_root: Path,
     records: list[dict[str, object]],
     seedance_profile: dict[str, object] | None = None,
+    workflow_mode: str = "render",
 ) -> tuple[Path, Path]:
     json_path = batch_edit_root / "batch_manifest.json"
     md_path = batch_edit_root / "batch_manifest.md"
@@ -1470,6 +1582,7 @@ def write_batch_manifest(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "batch_root": str(batch_edit_root),
         "seedance_profile": seedance_profile,
+        "workflow_mode": workflow_mode,
         "records": records,
     }
     json_path.write_text(json.dumps(payload, indent=2))
@@ -1479,6 +1592,7 @@ def write_batch_manifest(
         "",
         f"Created at: {payload['created_at']}",
         f"Batch root: {payload['batch_root']}",
+        f"Workflow mode: {payload['workflow_mode']}",
         "",
     ]
     if seedance_profile is not None:
@@ -1498,8 +1612,8 @@ def write_batch_manifest(
         )
     lines.extend(
         [
-            "| # | Topic | Slug | Status | Output Dir | Script | Final | Captioned | Duration | Dimensions | Video | Audio | Probe Warning | Error |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| # | Topic | Slug | Status | Output Dir | Script | Payload | Final | Captioned | Duration | Dimensions | Video | Audio | Probe Warning | Error |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for record in records:
@@ -1515,6 +1629,7 @@ def write_batch_manifest(
                     format_manifest_value(record.get("status")),
                     format_manifest_value(record.get("output_dir")),
                     format_manifest_value(record.get("generated_script_path")),
+                    format_manifest_value(record.get("seedance_payload_path")),
                     format_manifest_value(record.get("final_social_path")),
                     format_manifest_value(record.get("captioned_path")),
                     format_manifest_value(record.get("duration")),
@@ -1575,7 +1690,7 @@ def build_reel_subprocess_cmd(args: argparse.Namespace, topic: str, batch_copy_t
     return cmd
 
 
-def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
+def run_topic_batch(args: argparse.Namespace, topics: list[str], *, payload_only: bool = False) -> int:
     batch_root = Path(tempfile.mkdtemp(prefix=f"travelbuddy_batch_{slugify_text(' '.join(topics[:2]) or 'topics')}_")).resolve()
     batch_edit_root = batch_root / "edit" / "batch"
     shared_piper_data_dir = batch_root / "shared" / "piper_data"
@@ -1595,36 +1710,81 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
         reel_dir = batch_edit_root / reel_name
         reel_dir.mkdir(parents=True, exist_ok=True)
 
-        topic_args = argparse.Namespace(**vars(args))
-        topic_args.topic = topic
-        topic_args.social_ready = True
-        topic_args.travelbuddy_reel = True
-        topic_args.tts_provider = "piper"
-        if topic_args.piper_data_dir is None:
-            topic_args.piper_data_dir = shared_piper_data_dir
-        cmd = build_reel_subprocess_cmd(topic_args, topic, reel_dir)
         print(f"[batch {index}/{len(topics)}] {reel_name}: {topic}", flush=True)
-        result = subprocess.run(cmd, cwd=REPO_ROOT)
-        ok = result.returncode == 0
         final_social_path = reel_dir / "final_social.mp4"
         captioned_path = reel_dir / "preview_branded_916_captioned.mp4"
         generated_script_path = reel_dir / "generated_script.json"
+        payload_path = reel_dir / "seedance_payload.json"
         duration = None
         width = None
         height = None
         video_codec = None
         audio_codec = None
         probe_warning = None
-        if final_social_path.exists():
-            duration, width, height, video_codec, audio_codec, probe_warning = probe_media_summary(final_social_path)
-        elif ok:
-            probe_warning = "final_social.mp4 missing from reel output"
-        if ok:
-            successes += 1
-            print(f"  -> {reel_dir}", flush=True)
+        ok = False
+        error_message = None
+        if payload_only:
+            try:
+                content_metadata = build_content_metadata(
+                    export_preset=resolve_export_preset(args.export_preset),
+                    caption_style=resolve_caption_style(args.caption_style),
+                    content_type=args.content_type,
+                    brand=args.brand,
+                    seedance_profile=getattr(args, "seedance_profile", {}),
+                    mode=args.mode,
+                    topic=topic,
+                )
+                generated_script_path, _payload_path = build_seedance_artifacts(reel_dir, topic, content_metadata, args)
+                ok = True
+                successes += 1
+                print(f"  -> {reel_dir} (payload only)", flush=True)
+            except Exception as exc:
+                failures += 1
+                error_message = str(exc)
+                print(f"  x payload build failed: {exc}", flush=True)
         else:
-            failures += 1
-            print(f"  x failed with exit code {result.returncode}", flush=True)
+            topic_args = argparse.Namespace(**vars(args))
+            topic_args.topic = topic
+            topic_args.social_ready = True
+            topic_args.travelbuddy_reel = True
+            topic_args.tts_provider = "piper"
+            if topic_args.piper_data_dir is None:
+                topic_args.piper_data_dir = shared_piper_data_dir
+            cmd = build_reel_subprocess_cmd(topic_args, topic, reel_dir)
+            result = subprocess.run(cmd, cwd=REPO_ROOT)
+            ok = result.returncode == 0
+            if final_social_path.exists():
+                duration, width, height, video_codec, audio_codec, probe_warning = probe_media_summary(final_social_path)
+            elif ok:
+                probe_warning = "final_social.mp4 missing from reel output"
+            if ok:
+                successes += 1
+                print(f"  -> {reel_dir}", flush=True)
+            else:
+                failures += 1
+                error_message = f"batch subprocess exited with code {result.returncode}"
+                print(f"  x failed with exit code {result.returncode}", flush=True)
+
+            if generated_script_path.exists() and payload_path.exists():
+                # The child process writes these files into its workspace, then copies them
+                # into the per-reel batch folder.
+                pass
+
+        if payload_only:
+            duration = None
+            width = None
+            height = None
+            video_codec = None
+            audio_codec = None
+            probe_warning = None
+            if not generated_script_path.exists():
+                generated_script_path = None  # type: ignore[assignment]
+            if not payload_path.exists():
+                payload_path = None  # type: ignore[assignment]
+        else:
+            if generated_script_path.exists() and payload_path.exists():
+                duration, width, height, video_codec, audio_codec, probe_warning = probe_media_summary(final_social_path) if final_social_path.exists() else (None, None, None, None, None, None)
+
         reel_summaries.append((topic, reel_dir, ok))
         manifest_records.append(
             {
@@ -1633,14 +1793,15 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
                 "slug": topic_slug,
                 "status": "success" if ok else "failed",
                 "output_dir": str(reel_dir),
-                "generated_script_path": str(generated_script_path) if generated_script_path.exists() else None,
+                "generated_script_path": str(generated_script_path) if generated_script_path and generated_script_path.exists() else None,
+                "seedance_payload_path": str(payload_path) if payload_path and payload_path.exists() else None,
                 "final_social_path": str(final_social_path) if final_social_path.exists() else None,
                 "captioned_path": str(captioned_path) if captioned_path.exists() else None,
                 "duration": duration,
                 "dimensions": [width, height] if width and height else None,
                 "video_codec": video_codec,
                 "audio_codec": audio_codec,
-                "error": None if ok else f"batch subprocess exited with code {result.returncode}",
+                "error": error_message,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "probe_warning": probe_warning,
                 "duration_seconds": args.duration,
@@ -1657,6 +1818,7 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
                     "generation_mode": "production",
                     "output_intent": "social_video",
                 },
+                "payload_only": payload_only,
             }
         )
 
@@ -1664,7 +1826,12 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
         batch_edit_root,
         manifest_records,
         seedance_profile=getattr(args, "seedance_profile", None),
+        workflow_mode="payload_only" if payload_only else "render",
     )
+    if payload_only:
+        print_seedance_payload_batch_banner(len([t for t in topics if t.strip()]), batch_root, batch_edit_root, manifest_json_path, manifest_md_path)
+        return 0 if failures == 0 else 1
+
     exported_manifest_files = export_batch_manifest_files(manifest_json_path, manifest_md_path)
     print()
     print("==================================================", flush=True)
@@ -1776,6 +1943,11 @@ def main() -> None:
         help="Override pause length between generated narration chunks in milliseconds",
     )
     ap.add_argument(
+        "--seedance-payload-only",
+        action="store_true",
+        help="Build Seedance production payloads and skip the local render pipeline",
+    )
+    ap.add_argument(
         "--tts-provider",
         type=str,
         default=None,
@@ -1840,7 +2012,7 @@ def main() -> None:
         topics = [line.strip() for line in topics_path.read_text().splitlines() if line.strip()]
         if not topics:
             raise SystemExit(f"no topics found in {topics_path}")
-        raise SystemExit(run_topic_batch(args, topics))
+        raise SystemExit(run_topic_batch(args, topics, payload_only=args.seedance_payload_only))
 
     if args.travelbuddy_reel:
         args = resolve_travelbuddy_reel_options(args)
@@ -1856,7 +2028,8 @@ def main() -> None:
         args.tts_provider = args.tts_provider or "placeholder"
         args.pause_profile = args.pause_profile or PAUSE_PROFILE_DEFAULT
 
-    require_tools(["ffmpeg", "ffprobe"])
+    if not args.seedance_payload_only:
+        require_tools(["ffmpeg", "ffprobe"])
     hooks = resolve_branding_hooks(args.brand, args.style)
     try:
         export_preset = resolve_export_preset(args.export_preset)
@@ -1886,6 +2059,19 @@ def main() -> None:
     verify_dir = edit_dir / "verify"
     edit_dir.mkdir(parents=True, exist_ok=True)
     verify_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.seedance_payload_only:
+        log(1, 1, "Building Seedance payloads...")
+        generated_script_path, seedance_payload_path = build_seedance_artifacts(edit_dir, args.topic, content_metadata, args)
+        print_seedance_payload_skip_banner(args.topic or "Untitled idea", seedance_payload_path, generated_script_path)
+        generated_files = gather_generated_files(workspace)
+        print()
+        print(f"Workspace: {workspace}")
+        print(f"Output directory: {edit_dir}")
+        print("Generated files:")
+        for path in generated_files:
+            print(f"  - {path}")
+        return
 
     source_name = "demo_sample.mp4"
     source_path = workspace / source_name
@@ -1941,10 +2127,11 @@ def main() -> None:
     else:
         print("Branding mode inactive; using default placeholders", flush=True)
     generated_script_path: Path | None = None
+    seedance_payload_path: Path | None = None
     narration_text: str | None = None
     narration_chunks: list[str] | None = None
-    if args.topic:
-        generated_script_path = write_generated_script(edit_dir, content_metadata.script_stub)
+    if args.topic or args.seedance_payload_only:
+        generated_script_path, seedance_payload_path = build_seedance_artifacts(edit_dir, args.topic, content_metadata, args)
         narration_text = str(content_metadata.script_stub.get("voice_text", "")).strip() or None
         narration_chunks = [
             str(chunk).strip()
@@ -1964,6 +2151,17 @@ def main() -> None:
         print(f"  narration length: {len(narration_text or '')} chars", flush=True)
         print(f"  applied pause: {applied_pause_ms} ms", flush=True)
         print(f"  generated script path: {generated_script_path}", flush=True)
+        print(f"  seedance payload path: {seedance_payload_path}", flush=True)
+        if args.seedance_payload_only:
+            print_seedance_payload_skip_banner(args.topic or "Untitled idea", seedance_payload_path, generated_script_path)
+            generated_files = gather_generated_files(workspace)
+            print()
+            print(f"Workspace: {workspace}")
+            print(f"Output directory: {edit_dir}")
+            print("Generated files:")
+            for path in generated_files:
+                print(f"  - {path}")
+            return
     transcribe_cmd = [
         helper_python(),
         str(REPO_ROOT / "helpers" / "transcribe_batch.py"),

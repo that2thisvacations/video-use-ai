@@ -253,6 +253,25 @@ The near-term goal is to carry these fields through CLI, generated script JSON,
 and batch manifests so the repo is ready for a real Seedance API handoff later.
 No fake clips or synthetic Seedance assets should be introduced in the process.
 
+### Seedance Production Payload Handoff
+
+The next layer is a payload builder that turns the local script metadata into an
+API-ready JSON request without changing the render engine. The payload builder:
+
+- writes `edit/seedance_payload.json` for single reels
+- writes `edit/batch/reel_###/seedance_payload.json` for batch reels
+- keeps the local render path separate from production handoff
+- preserves mode, pacing, caption, and branding metadata for future API calls
+- supports a payload-only CLI path for request preparation without rendering
+
+The safest implementation order is:
+
+1. Validate Seedance config inputs.
+2. Build deterministic payload JSON.
+3. Save payloads beside generated script JSON.
+4. Add payload-only CLI routing.
+5. Hand the payload schema to any future API client.
+
 ## Recommended Daily Creator Flow
 
 Use `--travelbuddy-reel` as the one-command daily path when the goal is a
@@ -265,6 +284,7 @@ polished, social-ready TravelBuddy output. It should default to:
 - `--caption-style cinematic_gold`
 - `--pause-profile natural`
 - `--content-type mentor_pitch`
+- `--seedance-payload-only` for payload handoff without local rendering
 
 Then override only the pieces that need to change for a specific reel.
 

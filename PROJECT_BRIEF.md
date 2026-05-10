@@ -163,6 +163,8 @@ Example commands:
 ```
 
 The selected Seedance configuration is written into `edit/generated_script.json` and `edit/batch/batch_manifest.json` so the repo can hand off production generation settings later without changing the local render engine.
+The production payload builder also writes `edit/seedance_payload.json` for single reels and `edit/batch/reel_###/seedance_payload.json` for batch reels.
+Use `--seedance-payload-only` when you want the production handoff payloads without running the local render pipeline.
 
 For creator batching, `--topics-file` turns a plain text list into multiple reel runs and writes each result into `edit/batch/reel_###/`.
 The batch runner also writes `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` so the run can be reviewed after the fact.
@@ -203,9 +205,11 @@ Verified caption rendering behavior:
 - `--travelbuddy-reel` is the recommended daily creator shortcut and still preserves manual overrides
 - `./travelbuddy` is the fastest creator-facing entrypoint for single reels and batch runs
 - `--topics-file` batches multiple reels from a plain text topic list
+- `--seedance-payload-only` writes Seedance handoff payloads and skips the local render pipeline
 - `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` summarize batch runs with probe metadata and per-reel status
 - `examples/topics_daily.txt` is the starter file for daily batch sessions
 - `--topic` produces `edit/generated_script.json` and can feed chunked Piper narration plus caption grouping
+The Seedance payload builder combines the generated script with mode, duration, resolution, aspect ratio, pacing, and caption metadata, then writes it beside the local render outputs for future API handoff.
 
 ## Placeholder Audio Mode
 

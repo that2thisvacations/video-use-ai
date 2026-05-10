@@ -55,6 +55,12 @@ Examples:
 ./travelbuddy batch examples/topics_daily.txt --duration 8 --resolution 1080p --aspect-ratio 9:16
 ```
 
+Seedance payload handoff:
+```bash
+./travelbuddy reel "Travel is the new freedom." --seedance-payload-only
+./travelbuddy batch examples/topics_daily.txt --seedance-payload-only
+```
+
 ## F) Batch Reels
 ```bash
 ./travelbuddy batch examples/topics_daily.txt
@@ -72,6 +78,7 @@ Examples:
 - `--duration`
 - `--resolution`
 - `--aspect-ratio`
+- `--seedance-payload-only`
 - `--caption-style`
 - `--open-output`
 
@@ -88,4 +95,7 @@ Examples:
 ./travelbuddy reel "AI is replacing average marketing." --mode ai_marketing
 ./travelbuddy reel "Travel is the new freedom." --duration 10 --resolution 1080p --aspect-ratio 9:16
 ./travelbuddy batch examples/topics_daily.txt
+./travelbuddy reel "Travel is the new freedom." --seedance-payload-only
 ```
+
+The payload-only mode writes `edit/seedance_payload.json` and skips the local render pipeline.

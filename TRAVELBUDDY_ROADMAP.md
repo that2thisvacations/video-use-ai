@@ -239,6 +239,20 @@ lightweight tone profiles, not AI APIs:
 These modes steer hooks, pacing, CTA phrasing, voice chunk rhythm, emphasis
 words, and `script_style` metadata while keeping the render pipeline intact.
 
+### Seedance 2.0 Production Config
+
+Seedance 2.0 should be treated as a production generation configuration layer,
+separate from the local render demo. Supported controls:
+
+- durations: `5` through `15`
+- resolutions: `480p`, `720p`, `1080p`
+- aspect ratios: `1:1`, `9:16`, `16:9`, `3:4`, `4:3`
+- defaults: `10`, `1080p`, `9:16`
+
+The near-term goal is to carry these fields through CLI, generated script JSON,
+and batch manifests so the repo is ready for a real Seedance API handoff later.
+No fake clips or synthetic Seedance assets should be introduced in the process.
+
 ## Recommended Daily Creator Flow
 
 Use `--travelbuddy-reel` as the one-command daily path when the goal is a

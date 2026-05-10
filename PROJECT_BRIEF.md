@@ -147,6 +147,23 @@ Mode examples:
 ./travelbuddy reel "The best mentor stories sound simple." --mode mentor_story
 ```
 
+Seedance 2.0 production config is available as a metadata layer only, separate from the local render workflow:
+
+- durations: `5` through `15` seconds
+- resolutions: `480p`, `720p`, `1080p`
+- aspect ratios: `1:1`, `9:16`, `16:9`, `3:4`, `4:3`
+- defaults: `10` seconds, `1080p`, `9:16`
+
+Example commands:
+
+```bash
+./travelbuddy reel "Travel is the new freedom." --duration 10 --resolution 1080p --aspect-ratio 9:16
+./travelbuddy reel "Luxury travel sells the lifestyle." --duration 15 --resolution 720p --aspect-ratio 16:9
+./travelbuddy batch examples/topics_daily.txt --duration 8 --resolution 1080p --aspect-ratio 9:16
+```
+
+The selected Seedance configuration is written into `edit/generated_script.json` and `edit/batch/batch_manifest.json` so the repo can hand off production generation settings later without changing the local render engine.
+
 For creator batching, `--topics-file` turns a plain text list into multiple reel runs and writes each result into `edit/batch/reel_###/`.
 The batch runner also writes `edit/batch/batch_manifest.json` and `edit/batch/batch_manifest.md` so the run can be reviewed after the fact.
 `examples/topics_daily.txt` is the recommended 10-topic starter list for daily batching.

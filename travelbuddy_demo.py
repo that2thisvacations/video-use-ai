@@ -21,6 +21,12 @@ from pathlib import Path
 from helpers.caption_styles import CaptionStyle, get_caption_style
 from helpers.export_presets import ExportPreset, get_export_preset
 from helpers.script_engine import generate_script_stub, get_mode_profile, get_routing_hint, normalize_content_type
+from helpers.seedance_config import (
+    DEFAULT_ASPECT_RATIO,
+    DEFAULT_DURATION_SECONDS,
+    DEFAULT_RESOLUTION,
+    get_seedance_generation_profile,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -66,6 +72,7 @@ class DemoContentMetadata:
     caption_style: CaptionStyle
     mode: str | None
     mode_description: str | None
+    seedance_profile: dict[str, object]
     content_type: str
     script_stub: dict[str, object]
 
@@ -77,6 +84,7 @@ class DemoContentMetadata:
             "caption_style_details": asdict(self.caption_style),
             "mode": self.mode,
             "mode_description": self.mode_description,
+            "seedance_profile": self.seedance_profile,
             "content_type": self.content_type,
             "script_stub": self.script_stub,
         }
@@ -906,6 +914,7 @@ def build_content_metadata(
     caption_style: CaptionStyle,
     content_type: str,
     brand: str,
+    seedance_profile: dict[str, object],
     mode: str | None = None,
     topic: str | None = None,
 ) -> DemoContentMetadata:
@@ -934,17 +943,32 @@ def build_content_metadata(
             "hook_style": mode_profile.get("hook_style") if mode_profile else None,
             "pacing_profile": mode_profile.get("pacing_profile") if mode_profile else None,
             "routing_hint": get_routing_hint(content_key),
+            "duration_seconds": seedance_profile["duration_seconds"],
+            "resolution": seedance_profile["resolution"],
+            "aspect_ratio": seedance_profile["aspect_ratio"],
+            "model": seedance_profile["model"],
+            "generation_mode": seedance_profile["generation_mode"],
+            "output_intent": seedance_profile["output_intent"],
+            "seedance_profile": seedance_profile,
             "notes": [
                 "future LLM call site",
                 "keep transcript contract unchanged",
                 "route content type into travel-specific script prompts",
             ],
         }
+    script_stub["duration_seconds"] = seedance_profile["duration_seconds"]
+    script_stub["resolution"] = seedance_profile["resolution"]
+    script_stub["aspect_ratio"] = seedance_profile["aspect_ratio"]
+    script_stub["model"] = seedance_profile["model"]
+    script_stub["generation_mode"] = seedance_profile["generation_mode"]
+    script_stub["output_intent"] = seedance_profile["output_intent"]
+    script_stub["seedance_profile"] = seedance_profile
     return DemoContentMetadata(
         export_preset=export_preset,
         caption_style=caption_style,
         mode=script_stub.get("mode") if isinstance(script_stub, dict) else None,
         mode_description=script_stub.get("mode_description") if isinstance(script_stub, dict) else None,
+        seedance_profile=seedance_profile,
         content_type=str(script_stub["content_type"]),
         script_stub=script_stub,
     )
@@ -1435,12 +1459,17 @@ def format_manifest_value(value: object) -> str:
     return str(value)
 
 
-def write_batch_manifest(batch_edit_root: Path, records: list[dict[str, object]]) -> tuple[Path, Path]:
+def write_batch_manifest(
+    batch_edit_root: Path,
+    records: list[dict[str, object]],
+    seedance_profile: dict[str, object] | None = None,
+) -> tuple[Path, Path]:
     json_path = batch_edit_root / "batch_manifest.json"
     md_path = batch_edit_root / "batch_manifest.md"
     payload = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "batch_root": str(batch_edit_root),
+        "seedance_profile": seedance_profile,
         "records": records,
     }
     json_path.write_text(json.dumps(payload, indent=2))
@@ -1451,9 +1480,28 @@ def write_batch_manifest(batch_edit_root: Path, records: list[dict[str, object]]
         f"Created at: {payload['created_at']}",
         f"Batch root: {payload['batch_root']}",
         "",
-        "| # | Topic | Slug | Status | Output Dir | Script | Final | Captioned | Duration | Dimensions | Video | Audio | Probe Warning | Error |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
+    if seedance_profile is not None:
+        lines.extend(
+            [
+                "Seedance profile:",
+                (
+                    f"- duration={seedance_profile.get('duration_seconds')}s, "
+                    f"resolution={seedance_profile.get('resolution')}, "
+                    f"aspect_ratio={seedance_profile.get('aspect_ratio')}, "
+                    f"model={seedance_profile.get('model')}, "
+                    f"generation_mode={seedance_profile.get('generation_mode')}, "
+                    f"output_intent={seedance_profile.get('output_intent')}"
+                ),
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "| # | Topic | Slug | Status | Output Dir | Script | Final | Captioned | Duration | Dimensions | Video | Audio | Probe Warning | Error |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+    )
     for record in records:
         dims = record.get("dimensions")
         dims_text = "x".join(str(part) for part in dims) if isinstance(dims, list) and len(dims) == 2 else "null"
@@ -1517,6 +1565,12 @@ def build_reel_subprocess_cmd(args: argparse.Namespace, topic: str, batch_copy_t
         cmd.extend(["--watermark-opacity", str(args.watermark_opacity)])
     if args.watermark_margin is not None:
         cmd.extend(["--watermark-margin", str(args.watermark_margin)])
+    if args.duration is not None:
+        cmd.extend(["--duration", str(args.duration)])
+    if args.resolution is not None:
+        cmd.extend(["--resolution", str(args.resolution)])
+    if args.aspect_ratio is not None:
+        cmd.extend(["--aspect-ratio", str(args.aspect_ratio)])
     cmd.extend(["--batch-copy-to", str(batch_copy_to)])
     return cmd
 
@@ -1589,10 +1643,28 @@ def run_topic_batch(args: argparse.Namespace, topics: list[str]) -> int:
                 "error": None if ok else f"batch subprocess exited with code {result.returncode}",
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "probe_warning": probe_warning,
+                "duration_seconds": args.duration,
+                "resolution": args.resolution,
+                "aspect_ratio": args.aspect_ratio,
+                "model": "seedance_2_0",
+                "generation_mode": "production",
+                "output_intent": "social_video",
+                "seedance_profile": {
+                    "duration_seconds": args.duration,
+                    "resolution": args.resolution,
+                    "aspect_ratio": args.aspect_ratio,
+                    "model": "seedance_2_0",
+                    "generation_mode": "production",
+                    "output_intent": "social_video",
+                },
             }
         )
 
-    manifest_json_path, manifest_md_path = write_batch_manifest(batch_edit_root, manifest_records)
+    manifest_json_path, manifest_md_path = write_batch_manifest(
+        batch_edit_root,
+        manifest_records,
+        seedance_profile=getattr(args, "seedance_profile", None),
+    )
     exported_manifest_files = export_batch_manifest_files(manifest_json_path, manifest_md_path)
     print()
     print("==================================================", flush=True)
@@ -1659,6 +1731,24 @@ def main() -> None:
         type=str,
         default=None,
         help="Content type metadata name (default: mentor_pitch)",
+    )
+    ap.add_argument(
+        "--duration",
+        type=int,
+        default=DEFAULT_DURATION_SECONDS,
+        help="Seedance production duration in seconds (5-15, default: 10)",
+    )
+    ap.add_argument(
+        "--resolution",
+        type=str,
+        default=DEFAULT_RESOLUTION,
+        help="Seedance production resolution (480p|720p|1080p, default: 1080p)",
+    )
+    ap.add_argument(
+        "--aspect-ratio",
+        type=str,
+        default=DEFAULT_ASPECT_RATIO,
+        help="Seedance production aspect ratio (1:1|9:16|16:9|3:4|4:3, default: 9:16)",
     )
     ap.add_argument(
         "--topics-file",
@@ -1735,6 +1825,12 @@ def main() -> None:
     )
     args = ap.parse_args()
 
+    try:
+        seedance_profile = get_seedance_generation_profile(args.duration, args.resolution, args.aspect_ratio)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    args.seedance_profile = seedance_profile.to_dict()
+
     if args.topics_file is not None:
         if args.topic:
             raise SystemExit("--topics-file cannot be combined with --topic")
@@ -1772,6 +1868,7 @@ def main() -> None:
         caption_style=caption_style,
         content_type=args.content_type,
         brand=args.brand,
+        seedance_profile=args.seedance_profile,
         mode=args.mode,
         topic=args.topic,
     )
@@ -1824,6 +1921,12 @@ def main() -> None:
             flush=True,
         )
         print(
+            "  seedance config: "
+            f"{args.duration}s / {args.resolution} / {args.aspect_ratio} "
+            f"(model={content_metadata.script_stub.get('model')}, mode={content_metadata.script_stub.get('generation_mode')})",
+            flush=True,
+        )
+        print(
             f"  narration pause profile: {args.pause_profile} / {applied_pause_ms} ms",
             flush=True,
         )
@@ -1853,6 +1956,11 @@ def main() -> None:
         print(f"  content type: {content_metadata.content_type}", flush=True)
         if content_metadata.mode:
             print(f"  mode: {content_metadata.mode}", flush=True)
+        print(
+            "  seedance config: "
+            f"{args.duration}s / {args.resolution} / {args.aspect_ratio}",
+            flush=True,
+        )
         print(f"  narration length: {len(narration_text or '')} chars", flush=True)
         print(f"  applied pause: {applied_pause_ms} ms", flush=True)
         print(f"  generated script path: {generated_script_path}", flush=True)
